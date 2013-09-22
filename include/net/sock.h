@@ -791,7 +791,7 @@ void sk_stream_wait_close(struct sock *sk, long timeo_p);
 int sk_stream_error(struct sock *sk, int flags, int err);
 void sk_stream_kill_queues(struct sock *sk);
 
-int sk_wait_data(struct sock *sk, long *timeo, const struct sk_buff *skb);
+int sk_wait_data(struct sock *sk, long *timeo);
 
 struct request_sock_ops;
 struct timewait_sock_ops;
@@ -1399,44 +1399,31 @@ static inline void unlock_sock_fast(struct sock *sk, bool slow)
 }
 
 
-struct sock		*sk_alloc(struct net *net, int family,
-					  gfp_t priority,
-					  struct proto *prot);
-void			sk_free(struct sock *sk);
-void			sk_release_kernel(struct sock *sk);
-struct sock		*sk_clone_lock(const struct sock *sk,
-					  const gfp_t priority);
+struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
+		      struct proto *prot);
+void sk_free(struct sock *sk);
+void sk_release_kernel(struct sock *sk);
+struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority);
 
-struct sk_buff		*sock_wmalloc(struct sock *sk,
-					      unsigned long size, int force,
-					      gfp_t priority);
-struct sk_buff		*sock_rmalloc(struct sock *sk,
-					      unsigned long size, int force,
-					      gfp_t priority);
-void			sock_wfree(struct sk_buff *skb);
-void			sock_rfree(struct sk_buff *skb);
+struct sk_buff *sock_wmalloc(struct sock *sk, unsigned long size, int force,
+			     gfp_t priority);
+struct sk_buff *sock_rmalloc(struct sock *sk, unsigned long size, int force,
+			     gfp_t priority);
+void sock_wfree(struct sk_buff *skb);
+void sock_rfree(struct sk_buff *skb);
 
-int			sock_setsockopt(struct socket *sock, int level,
-						int op, char __user *optval,
-						unsigned int optlen);
-
-int			sock_getsockopt(struct socket *sock, int level,
-						int op, char __user *optval,
-						int __user *optlen);
-struct sk_buff		*sock_alloc_send_skb(struct sock *sk,
-						     unsigned long size,
-						     int noblock,
-						     int *errcode);
-struct sk_buff		*sock_alloc_send_pskb(struct sock *sk,
-						      unsigned long header_len,
-						      unsigned long data_len,
-						      int noblock,
-						      int *errcode);
-void *sock_kmalloc(struct sock *sk, int size,
-			  gfp_t priority);
+int sock_setsockopt(struct socket *sock, int level, int op,
+		    char __user *optval, unsigned int optlen);
+int sock_getsockopt(struct socket *sock, int level, int op,
+		    char __user *optval, int __user *optlen);
+struct sk_buff *sock_alloc_send_skb(struct sock *sk, unsigned long size,
+				    int noblock, int *errcode);
+struct sk_buff *sock_alloc_send_pskb(struct sock *sk, unsigned long header_len,
+				     unsigned long data_len, int noblock,
+				     int *errcode);
+void *sock_kmalloc(struct sock *sk, int size, gfp_t priority);
 void sock_kfree_s(struct sock *sk, void *mem, int size);
 void sk_send_sigurg(struct sock *sk);
-
 
 #ifdef CONFIG_CGROUPS
 void sock_update_classid(struct sock *sk);
@@ -1490,7 +1477,7 @@ void sk_common_release(struct sock *sk);
 /*
  *	Default socket callbacks and setup code
  */
-
+ 
 /* Initialise core socket variables */
 void sock_init_data(struct socket *sock, struct sock *sk);
 
@@ -2080,7 +2067,7 @@ static inline void sock_recv_ts_and_drops(struct msghdr *msg, struct sock *sk,
  *
  * Currently only depends on SOCK_TIMESTAMPING* flags.
  */
-void sock_tx_timestamp(struct sock *sk, __u8 *tx_flags);
+int sock_tx_timestamp(struct sock *sk, __u8 *tx_flags);
 
 /**
  * sk_eat_skb - Release a skb if it is no longer needed
