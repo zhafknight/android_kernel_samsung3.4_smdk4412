@@ -390,8 +390,6 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
 }
 EXPORT_SYMBOL(kvmalloc_node);
 
-extern void vfree(const void *addr);
-
 void kvfree(const void *addr)
 {
 	if (is_vmalloc_addr(addr))
