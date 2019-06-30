@@ -41,7 +41,6 @@
 #define F_SEAL_GROW	0x0004	/* prevent file from growing */
 #define F_SEAL_WRITE	0x0008	/* prevent writes */
 /* (1U << 31) is reserved for signed error codes */
-
 /*
  * Types of directory notifications that may be requested.
  */
