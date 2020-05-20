@@ -1146,12 +1146,6 @@ static void report_input_data(struct mxt540e_data *data)
 
 	if (count == 0) {
 		sumsize = 0;
-		if (data->cpu_freq_lock != -1) {
-			if (touch_cpu_lock_status) {
-				exynos_cpufreq_lock_free(DVFS_LOCK_ID_TSP);
-				touch_cpu_lock_status = 0;
-			}
-		}
 	}
 	data->finger_mask = 0;
 
@@ -1182,19 +1176,9 @@ static irqreturn_t mxt540e_irq_thread(int irq, void *ptr)
 	u8 touch_message_flag = 0;
 	u8 object_type, instance;
 
-	if (data->cpu_freq_lock == -1)
-		exynos_cpufreq_get_level(500000, &data->cpu_freq_lock);
-
 	do {
 		touch_message_flag = 0;
 		if (read_mem(data, data->msg_proc, sizeof(msg), msg)) {
-			if (data->cpu_freq_lock != -1) {
-				if (touch_cpu_lock_status) {
-					exynos_cpufreq_lock_free
-						(DVFS_LOCK_ID_TSP);
-					touch_cpu_lock_status = 0;
-				}
-			}
 			return IRQ_HANDLED;
 		}
 
@@ -1264,14 +1248,6 @@ static irqreturn_t mxt540e_irq_thread(int irq, void *ptr)
 			} else if ((msg[1] & DETECT_MSG_MASK) &&
 				(msg[1] & (PRESS_MSG_MASK | MOVE_MSG_MASK
 					| VECTOR_MSG_MASK))) {
-				if (data->cpu_freq_lock != -1) {
-					if (touch_cpu_lock_status == 0) {
-						exynos_cpufreq_lock
-							(DVFS_LOCK_ID_TSP,
-							data->cpu_freq_lock);
-						touch_cpu_lock_status = 1;
-					}
-				}
 				touch_message_flag = 1;
 				data->fingers[id].component = msg[7];
 				data->fingers[id].z = msg[6];
