@@ -595,6 +595,35 @@ int __close_fd(struct files_struct *files, unsigned fd)
 	return filp_close(file, files);
 }
 
+static inline void __range_cloexec(struct files_struct *cur_fds,
+				   unsigned int fd, unsigned int max_fd)
+{
+	struct fdtable *fdt;
+
+	if (fd > max_fd)
+		return;
+
+	spin_lock(&cur_fds->file_lock);
+	fdt = files_fdtable(cur_fds);
+	bitmap_set(fdt->close_on_exec, fd, max_fd - fd + 1);
+	spin_unlock(&cur_fds->file_lock);
+}
+
+static inline void __range_close(struct files_struct *cur_fds, unsigned int fd,
+				 unsigned int max_fd)
+{
+	while (fd <= max_fd) {
+		struct file *file;
+
+		file = pick_file(cur_fds, fd++);
+		if (!file)
+			continue;
+
+		filp_close(file, cur_fds);
+		cond_resched();
+	}
+}
+
 /**
  * __close_range() - Close all file descriptors in a given range.
  *
@@ -607,6 +636,11 @@ int __close_fd(struct files_struct *files, unsigned fd)
 int __close_range(struct files_struct *files, unsigned fd, unsigned max_fd)
 {
 	unsigned int cur_max;
+	struct task_struct *me = current;
+	struct files_struct *cur_fds = me->files, *fds = NULL;
+
+	if (flags & ~(CLOSE_RANGE_UNSHARE | CLOSE_RANGE_CLOEXEC))
+		return -EINVAL;
 
 	if (fd > max_fd)
 		return -EINVAL;
@@ -619,16 +653,11 @@ int __close_range(struct files_struct *files, unsigned fd, unsigned max_fd)
 	cur_max--;
 
 	max_fd = min(max_fd, cur_max);
-	while (fd <= max_fd) {
-		struct file *file;
 
-		file = pick_file(files, fd++);
-		if (!file)
-			continue;
-
-		filp_close(file, files);
-		cond_resched();
-	}
+	if (flags & CLOSE_RANGE_CLOEXEC)
+		__range_cloexec(cur_fds, fd, max_fd);
+	else
+		__range_close(cur_fds, fd, max_fd);
 
 	return 0;
 }
