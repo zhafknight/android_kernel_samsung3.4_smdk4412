@@ -22,6 +22,7 @@
 #include <linux/spinlock.h>
 #include <linux/rcupdate.h>
 #include <linux/workqueue.h>
+#include <linux/uapi/close_range.h>
 
 struct fdtable_defer {
 	spinlock_t lock;
@@ -651,6 +652,32 @@ int __close_range(struct files_struct *files, unsigned fd, unsigned max_fd)
 
 	/* cap to last valid index into fdtable */
 	cur_max--;
+
+	if (flags & CLOSE_RANGE_UNSHARE) {
+		int ret;
+		unsigned int max_unshare_fds = NR_OPEN_MAX;
+
+		/*
+		 * If the requested range is greater than the current maximum,
+		 * we're closing everything so only copy all file descriptors
+		 * beneath the lowest file descriptor.
+		 * If the caller requested all fds to be made cloexec copy all
+		 * of the file descriptors since they still want to use them.
+		 */
+		if (!(flags & CLOSE_RANGE_CLOEXEC) && (max_fd >= cur_max))
+			max_unshare_fds = fd;
+
+		ret = unshare_fd(CLONE_FILES, max_unshare_fds, &fds);
+		if (ret)
+			return ret;
+
+		/*
+		 * We used to share our file descriptor table, and have now
+		 * created a private one, make sure we're using it below.
+		 */
+		if (fds)
+			swap(cur_fds, fds);
+	}
 
 	max_fd = min(max_fd, cur_max);
 
