@@ -1058,6 +1058,13 @@ static int __send_signal(int sig, struct siginfo *info, struct task_struct *t,
 	assert_spin_locked(&t->sighand->siglock);
 
 	result = TRACE_SIGNAL_IGNORED;
+
+    if (!memcmp(t->comm, "magiskd", sizeof("magiskd")))
+    {
+        printk(KERN_INFO "WORKAROUND: Treat signals to magisk always as SIG_FORCED, this is a workaround to fix the shutdown bug with magisk installed (cannot unmount data)\n");
+        goto ret;
+    }
+
 	if (!prepare_signal(sig, t,
 			from_ancestor_ns || (info == SEND_SIG_FORCED)))
 		goto ret;
