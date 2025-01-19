@@ -321,6 +321,7 @@ static void sec_keyboard_disconnect(struct serio *serio)
 {
 	struct sec_keyboard_drvdata *data = serio_get_drvdata(serio);
 	printk(KERN_DEBUG "[Keyboard] %s", __func__);
+    msleep(5000);
 	data->tx_ready = false;
 	serio_close(serio);
 }
