@@ -1103,12 +1103,6 @@ free_bio:
 	return err;
 }
 
-static inline u64 div64_u64_rem(u64 dividend, u64 divisor, u64 *remainder)
-{
-        *remainder = dividend % divisor;
-        return dividend / divisor;
-}
-
 static inline u64 fec_div_round_up(u64 x, u64 y)
 {
 	u64 remainder;
