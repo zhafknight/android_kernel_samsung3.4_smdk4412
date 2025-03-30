@@ -913,14 +913,7 @@ void bpf_jit_compile(struct bpf_prog *fp)
 	ctx.idx = 0;
 
 	build_prologue(&ctx);
-	if (build_body(&ctx) < 0) {
-#if __LINUX_ARM_ARCH__ < 7
-		if (ctx.imm_count)
-			kfree(ctx.imms);
-#endif
-		bpf_jit_binary_free(header);
-		goto out;
-	}
+	build_body(&ctx);
 	build_epilogue(&ctx);
 
 	flush_icache_range((u32)ctx.target, (u32)(ctx.target + ctx.idx));
