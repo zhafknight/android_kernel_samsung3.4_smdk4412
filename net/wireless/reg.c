@@ -1739,6 +1739,8 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 	enum environment_cap env = ENVIRON_ANY;
 	struct regulatory_request *request;
 
+	return;
+
 	mutex_lock(&reg_mutex);
 
 	if (unlikely(!last_request))
