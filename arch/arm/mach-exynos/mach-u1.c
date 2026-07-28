@@ -6121,8 +6121,8 @@ static int p6_wacom_init_hw(void);
 static int p6_wacom_exit_hw(void);
 static int p6_wacom_suspend_hw(void);
 static int p6_wacom_resume_hw(void);
-static int p6_wacom_early_suspend_hw(void);
-static int p6_wacom_late_resume_hw(void);
+static int p6_wacom_fb_suspend_hw(void);
+static int p6_wacom_fb_resume_hw(void);
 static int p6_wacom_reset_hw(void);
 static void p6_wacom_register_callbacks(struct wacom_g5_callbacks *cb);
 
@@ -6141,8 +6141,8 @@ static struct wacom_g5_platform_data p6_wacom_platform_data = {
 /*	.exit_platform_hw =,	*/
 	.suspend_platform_hw = p6_wacom_suspend_hw,
 	.resume_platform_hw = p6_wacom_resume_hw,
-	.early_suspend_platform_hw = p6_wacom_early_suspend_hw,
-	.late_resume_platform_hw = p6_wacom_late_resume_hw,
+	.fb_suspend_platform_hw = p6_wacom_fb_suspend_hw,
+	.fb_resume_platform_hw = p6_wacom_fb_resume_hw,
 	.reset_platform_hw = p6_wacom_reset_hw,
 	.register_cb = p6_wacom_register_callbacks,
 };
@@ -6152,22 +6152,22 @@ static struct wacom_g5_platform_data p6_wacom_platform_data = {
 #ifdef CONFIG_EPEN_WACOM_G5SP
 static int p6_wacom_suspend_hw(void)
 {
-	return p6_wacom_early_suspend_hw();
+	return p6_wacom_fb_suspend_hw();
 }
 
 static int p6_wacom_resume_hw(void)
 {
-	return p6_wacom_late_resume_hw();
+	return p6_wacom_fb_resume_hw();
 }
 
-static int p6_wacom_early_suspend_hw(void)
+static int p6_wacom_fb_suspend_hw(void)
 {
 	gpio_direction_input(GPIO_PEN_PDCT);
 	gpio_set_value(GPIO_PEN_RESET, 0);
 	return 0;
 }
 
-static int p6_wacom_late_resume_hw(void)
+static int p6_wacom_fb_resume_hw(void)
 {
 	gpio_direction_output(GPIO_PEN_PDCT, 1);
 	gpio_set_value(GPIO_PEN_RESET, 1);
@@ -6176,9 +6176,9 @@ static int p6_wacom_late_resume_hw(void)
 
 static int p6_wacom_reset_hw(void)
 {
-	p6_wacom_early_suspend_hw();
+	p6_wacom_fb_suspend_hw();
 	msleep(200);
-	p6_wacom_late_resume_hw();
+	p6_wacom_fb_resume_hw();
 
 	return 0;
 }
