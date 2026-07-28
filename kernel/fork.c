@@ -1237,6 +1237,12 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	retval = -EAGAIN;
 	if (atomic_read(&p->real_cred->user->processes) >=
 			task_rlimit(p, RLIMIT_NPROC)) {
+		printk(KERN_ERR
+		       "fork_diag: RLIMIT_NPROC hit processes=%d limit=%lu comm=%s\n",
+		       atomic_read(&p->real_cred->user->processes),
+		       task_rlimit(p, RLIMIT_NPROC),
+		       current->comm);
+
 		if (!capable(CAP_SYS_ADMIN) && !capable(CAP_SYS_RESOURCE) &&
 		    p->real_cred->user != INIT_USER)
 			goto bad_fork_free;
@@ -1253,8 +1259,12 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	 * to stop root fork bombs.
 	 */
 	retval = -EAGAIN;
-	if (nr_threads >= max_threads)
+	if (nr_threads >= max_threads) {
+		printk(KERN_ERR
+		       "fork_diag: max_threads hit nr_threads=%d max_threads=%d comm=%s\n",
+		       nr_threads, max_threads, current->comm);
 		goto bad_fork_cleanup_count;
+	}
 
 	p->did_exec = 0;
 	delayacct_tsk_init(p);	/* Must remain after dup_task_struct() */
