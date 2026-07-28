@@ -559,6 +559,7 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_info *fi,
 		rcu_read_lock();
 		{
 			struct flowi4 fl4 = {
+				.flowi4_iif = LOOPBACK_IFINDEX,
 				.daddr = nh->nh_gw,
 				.flowi4_scope = cfg->fc_scope + 1,
 				.flowi4_oif = nh->nh_oif,

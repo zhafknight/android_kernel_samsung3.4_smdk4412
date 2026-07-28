@@ -12,6 +12,12 @@
 #include <linux/atomic.h>
 #include <linux/uidgid.h>
 
+/*
+ * ifindex generation is per-net namespace, and loopback is
+ * always the first device in a namespace, so it uses ifindex 1.
+ */
+#define LOOPBACK_IFINDEX	1
+
 struct flowi_common {
 	int	flowic_oif;
 	int	flowic_iif;
