@@ -22,7 +22,7 @@
 #include <linux/spinlock.h>
 #include <linux/rcupdate.h>
 #include <linux/workqueue.h>
-#include <linux/uapi/close_range.h>
+#include <uapi/linux/close_range.h>
 
 struct fdtable_defer {
 	spinlock_t lock;
@@ -286,12 +286,22 @@ static int count_open_files(struct fdtable *fdt)
 	return i;
 }
 
+static unsigned int sane_fdtable_size(struct fdtable *fdt, unsigned int max_fds)
+{
+	unsigned int count;
+
+	count = count_open_files(fdt);
+	if (max_fds < NR_OPEN_DEFAULT)
+		max_fds = NR_OPEN_DEFAULT;
+	return min(count, max_fds);
+}
+
 /*
  * Allocate a new files structure and copy contents from the
  * passed in files structure.
  * errorp will be valid only when the returned files_struct is NULL.
  */
-struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
+struct files_struct *dup_fd(struct files_struct *oldf, unsigned int max_fds, int *errorp)
 {
 	struct files_struct *newf;
 	struct file **old_fds, **new_fds;
@@ -316,7 +326,7 @@ struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 
 	spin_lock(&oldf->file_lock);
 	old_fdt = files_fdtable(oldf);
-	open_files = count_open_files(old_fdt);
+	open_files = sane_fdtable_size(old_fdt, max_fds);
 
 	/*
 	 * Check whether we need to allocate a larger fd array and fd set.
@@ -347,7 +357,7 @@ struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 		 */
 		spin_lock(&oldf->file_lock);
 		old_fdt = files_fdtable(oldf);
-		open_files = count_open_files(old_fdt);
+		open_files = sane_fdtable_size(old_fdt, max_fds);
 	}
 
 	old_fds = old_fdt->fd;
@@ -489,12 +499,6 @@ out:
 EXPORT_SYMBOL(alloc_fd);
 
 int alloc_fd(unsigned start, unsigned flags)
-{
-	return __alloc_fd(current->files, start, rlimit(RLIMIT_NOFILE), flags);
-}
-
-
-int get_unused_fd(void)
 {
 	return __alloc_fd(current->files, start, rlimit(RLIMIT_NOFILE), flags);
 }
@@ -647,7 +651,7 @@ static inline void __range_close(struct files_struct *cur_fds, unsigned int fd,
  * This closes a range of file descriptors. All file descriptors
  * from @fd up to and including @max_fd are closed.
  */
-int __close_range(struct files_struct *files, unsigned fd, unsigned max_fd)
+int __close_range(unsigned fd, unsigned max_fd, unsigned int flags)
 {
 	struct task_struct *me = current;
 	struct files_struct *cur_fds = me->files, *fds = NULL;
@@ -695,6 +699,17 @@ int __close_range(struct files_struct *files, unsigned fd, unsigned max_fd)
 		__range_cloexec(cur_fds, fd, max_fd);
 	else
 		__range_close(cur_fds, fd, max_fd);
+
+	if (fds) {
+		/*
+		 * We're done closing the files we were supposed to. Time to install
+		 * the new file descriptor table and drop the old one.
+		 */
+		task_lock(me);
+		me->files = cur_fds;
+		task_unlock(me);
+		put_files_struct(fds);
+	}
 
 	return 0;
 }
@@ -804,4 +819,3 @@ struct file *fget_raw_light(unsigned int fd, int *fput_needed)
 
 	return file;
 }
-EXPORT_SYMBOL(get_unused_fd);

@@ -1079,6 +1079,101 @@ static void swap_key_to_BE(struct wl_wsec_key *key)
 	key->iv_initialized = dtoh32(key->iv_initialized);
 }
 
+/* Dump the contents of the encoded wps ie buffer and get pbc value */
+static void
+wl_validate_wps_ie(char *wps_ie, s32 wps_ie_len, bool *pbc)
+{
+	#define WPS_IE_FIXED_LEN 6
+	u16 len;
+	u8 *subel = NULL;
+	u16 subelt_id;
+	u16 subelt_len;
+	u16 val;
+	u8 *valptr = (uint8*) &val;
+	if (wps_ie == NULL || wps_ie_len < WPS_IE_FIXED_LEN) {
+		WL_ERR(("invalid argument : NULL\n"));
+		return;
+	}
+	len = (u16)wps_ie[TLV_LEN_OFF];
+
+	if (len > wps_ie_len) {
+		WL_ERR(("invalid length len %d, wps ie len %d\n", len, wps_ie_len));
+		return;
+	}
+	WL_DBG(("wps_ie len=%d\n", len));
+	len -= 4;	/* for the WPS IE's OUI, oui_type fields */
+	subel = wps_ie + WPS_IE_FIXED_LEN;
+	while (len >= 4) {		/* must have attr id, attr len fields */
+		valptr[0] = *subel++;
+		valptr[1] = *subel++;
+		subelt_id = HTON16(val);
+
+		valptr[0] = *subel++;
+		valptr[1] = *subel++;
+		subelt_len = HTON16(val);
+
+		len -= 4;			/* for the attr id, attr len fields */
+
+		if (len < subelt_len) {
+			WL_ERR(("not enough data, len %d, subelt_len %d\n", len,
+				subelt_len));
+			break;
+		}
+		len -= subelt_len;	/* for the remaining fields in this attribute */
+
+		WL_DBG((" subel=%p, subelt_id=0x%x subelt_len=%u\n",
+			subel, subelt_id, subelt_len));
+
+		if (subelt_id == WPS_ID_VERSION) {
+			WL_DBG(("  attr WPS_ID_VERSION: %u\n", *subel));
+		} else if (subelt_id == WPS_ID_REQ_TYPE) {
+			WL_DBG(("  attr WPS_ID_REQ_TYPE: %u\n", *subel));
+		} else if (subelt_id == WPS_ID_CONFIG_METHODS) {
+			valptr[0] = *subel;
+			valptr[1] = *(subel + 1);
+			WL_DBG(("  attr WPS_ID_CONFIG_METHODS: %x\n", HTON16(val)));
+		} else if (subelt_id == WPS_ID_DEVICE_NAME) {
+			char devname[100];
+			size_t namelen = MIN(subelt_len, sizeof(devname));
+			if (namelen) {
+				memcpy(devname, subel, namelen);
+				devname[namelen - 1] = '\0';
+				WL_DBG(("  attr WPS_ID_DEVICE_NAME: %s (len %u)\n",
+					devname, subelt_len));
+			}
+		} else if (subelt_id == WPS_ID_DEVICE_PWD_ID) {
+			valptr[0] = *subel;
+			valptr[1] = *(subel + 1);
+			WL_DBG(("  attr WPS_ID_DEVICE_PWD_ID: %u\n", HTON16(val)));
+			*pbc = (HTON16(val) == DEV_PW_PUSHBUTTON) ? true : false;
+		} else if (subelt_id == WPS_ID_PRIM_DEV_TYPE) {
+			valptr[0] = *subel;
+			valptr[1] = *(subel + 1);
+			WL_DBG(("  attr WPS_ID_PRIM_DEV_TYPE: cat=%u \n", HTON16(val)));
+			valptr[0] = *(subel + 6);
+			valptr[1] = *(subel + 7);
+			WL_DBG(("  attr WPS_ID_PRIM_DEV_TYPE: subcat=%u\n", HTON16(val)));
+		} else if (subelt_id == WPS_ID_REQ_DEV_TYPE) {
+			valptr[0] = *subel;
+			valptr[1] = *(subel + 1);
+			WL_DBG(("  attr WPS_ID_REQ_DEV_TYPE: cat=%u\n", HTON16(val)));
+			valptr[0] = *(subel + 6);
+			valptr[1] = *(subel + 7);
+			WL_DBG(("  attr WPS_ID_REQ_DEV_TYPE: subcat=%u\n", HTON16(val)));
+		} else if (subelt_id == WPS_ID_SELECTED_REGISTRAR_CONFIG_METHODS) {
+			valptr[0] = *subel;
+			valptr[1] = *(subel + 1);
+			WL_DBG(("  attr WPS_ID_SELECTED_REGISTRAR_CONFIG_METHODS"
+				": cat=%u\n", HTON16(val)));
+		} else {
+			WL_DBG(("  unknown attr 0x%x\n", subelt_id));
+		}
+
+		subel += subelt_len;
+	}
+}
+
+
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 4, 0)) && !defined(WL_COMPAT_WIRELESS)
 /* For debug: Dump the contents of the encoded wps ie buffe */
 static void

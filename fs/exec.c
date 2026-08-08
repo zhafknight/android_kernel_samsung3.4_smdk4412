@@ -241,6 +241,9 @@ static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
 	}
 
 	return page;
+fail:
+	put_page(page);
+	return NULL;
 }
 
 static void put_arg_page(struct page *page)
