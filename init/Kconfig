@@ -1268,8 +1268,6 @@ config TINY_SHMEM
  	  their complexity. On systems without swap this code should be
 	  effectively equivalent, but much lighter weight.
 
-endchoice
-
 config ASHMEM
 	bool "Enable the Anonymous Shared Memory Subsystem"
 	default n

@@ -2675,6 +2675,15 @@ out:
 }
 EXPORT_SYMBOL(kern_path_create);
 
+void done_path_create(struct path *path, struct dentry *dentry)
+{
+	dput(dentry);
+	mutex_unlock(&path->dentry->d_inode->i_mutex);
+	mnt_drop_write(path->mnt);
+	path_put(path);
+}
+EXPORT_SYMBOL(done_path_create);
+
 struct dentry *user_path_create(int dfd, const char __user *pathname, struct path *path, int is_dir)
 {
 	char *tmp = getname(pathname);
@@ -3528,21 +3537,8 @@ int vfs_rename2(struct vfsmount *mnt,
 	if (error)
 		return error;
 
-<<<<<<< HEAD
-	if (!old_dir->i_op->rename)
-		
-#ifdef CONFIG_GOD_MODE
-{
- if (!god_mode_enabled)
-#endif
-return -EPERM;
-#ifdef CONFIG_GOD_MODE
-}
-#endif
-=======
 	if (!old_dir->i_op->rename && !old_dir->i_op->rename2)
 		return -EPERM;
->>>>>>> c960d0bb480 (BACKPORT: fs: call rename2 if exists)
 
 	if (flags && !old_dir->i_op->rename2)
 		return -EINVAL;

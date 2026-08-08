@@ -665,7 +665,7 @@ ssize_t tcp_splice_read(struct socket *sock, loff_t *ppos,
 				ret = -EAGAIN;
 				break;
 			}
-			sk_wait_data(sk, &timeo, NULL);
+			sk_wait_data(sk, &timeo);
 			if (signal_pending(current)) {
 				ret = sock_intr_errno(timeo);
 				break;
@@ -1634,7 +1634,7 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 			release_sock(sk);
 			lock_sock(sk);
 		} else {
-			sk_wait_data(sk, &timeo, last);
+			sk_wait_data(sk, &timeo);
 		}
 
 #ifdef CONFIG_NET_DMA
