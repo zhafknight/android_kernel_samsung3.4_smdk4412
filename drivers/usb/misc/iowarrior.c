@@ -888,6 +888,8 @@ static void iowarrior_disconnect(struct usb_interface *interface)
 	dev = usb_get_intfdata(interface);
 	mutex_lock(&iowarrior_open_disc_lock);
 	usb_set_intfdata(interface, NULL);
+	/* prevent device read, write and ioctl */
+	dev->present = 0;
 
 	minor = dev->minor;
 	mutex_unlock(&iowarrior_open_disc_lock);
@@ -898,7 +900,8 @@ static void iowarrior_disconnect(struct usb_interface *interface)
 	mutex_lock(&dev->mutex);
 
 	/* prevent device read, write and ioctl */
-	dev->present = 0;
+
+	mutex_unlock(&dev->mutex);
 
 	if (dev->opened) {
 		/* There is a process that holds a filedescriptor to the device ,
@@ -908,10 +911,8 @@ static void iowarrior_disconnect(struct usb_interface *interface)
 		usb_kill_urb(dev->int_in_urb);
 		wake_up_interruptible(&dev->read_wait);
 		wake_up_interruptible(&dev->write_wait);
-		mutex_unlock(&dev->mutex);
 	} else {
 		/* no process is using the device, cleanup now */
-		mutex_unlock(&dev->mutex);
 		iowarrior_delete(dev);
 	}
 
