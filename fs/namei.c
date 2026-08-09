@@ -3543,8 +3543,7 @@ static int vfs_rename_dir(struct vfsmount *mnt,
 			return error;
 	}
 
-	error = security_inode_rename(old_dir, old_dentry, new_dir, new_dentry,
-				      flags);
+	error = security_inode_rename(old_dir, old_dentry, new_dir, new_dentry);
 	if (error)
 		return error;
 
@@ -3766,7 +3765,7 @@ SYSCALL_DEFINE5(renameat2, int, olddfd, const char __user *, oldname,
 	if (error)
 		goto exit5;
 	error = security_path_rename(&oldnd.path, old_dentry,
-				     &newnd.path, new_dentry, flags);
+				     &newnd.path, new_dentry);
 	if (error)
 		goto exit6;
 	error = vfs_rename2(oldnd.path.mnt, old_dir->d_inode, old_dentry,
