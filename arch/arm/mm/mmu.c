@@ -807,7 +807,17 @@ static void * __initdata vmalloc_min =
 static int __init early_vmalloc(char *arg)
 {
 	unsigned long vmalloc_reserve = memparse(arg, NULL);
-
+    /*
+     * Ignore the legacy Samsung bootloader vmalloc=144M argument.
+     * Some devices may use different vmalloc values, so only ignore
+     * the known 144M value and keep the 240M kernel default instead.
+     */
+	if (vmalloc_reserve == (144 << 20)) {
+		printk(KERN_INFO
+			"Ignoring legacy bootloader vmalloc=144M, using 240MB default\n");
+		return 0;
+    }
+	
 	if (vmalloc_reserve < SZ_16M) {
 		vmalloc_reserve = SZ_16M;
 		printk(KERN_WARNING
