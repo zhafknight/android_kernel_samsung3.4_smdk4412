@@ -948,7 +948,7 @@ static irqreturn_t touchkey_interrupt(int irq, void *dev_id)
 	set_touchkey_debug('a');
 
 	if (!atomic_read(&tkey_i2c->keypad_enable)) {
-		return;
+		return IRQ_HANDLED;
 	}
 
 	retry = 3;
