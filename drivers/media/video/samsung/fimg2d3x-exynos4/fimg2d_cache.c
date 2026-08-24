@@ -58,6 +58,7 @@ void g2d_pagetable_clean(const void *start_addr, unsigned long size, unsigned lo
 static unsigned long virt2phys(unsigned long addr)
 {
 	pgd_t *pgd;
+	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 
@@ -71,7 +72,8 @@ static unsigned long virt2phys(unsigned long addr)
 		return 0;
 	}
 	
-	pmd = pmd_offset(pgd, addr);
+	pud = pud_offset(pgd, addr);
+	pmd = pmd_offset(pud, addr);
 	pte = pte_offset_map(pmd, addr);
 
 	return (addr & 0xfff) | (pte_val(*pte) & 0xfffff000);
