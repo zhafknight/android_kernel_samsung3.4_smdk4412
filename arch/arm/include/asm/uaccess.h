@@ -212,20 +212,35 @@ extern int __put_user_8(void *, unsigned long long);
 
 #define __put_user_x(__r2,__p,__e,__l,__s)				\
 	   __asm__ __volatile__ (					\
-		__asmeq("%0", "r0") __asmeq("%2", "r2")			\
-		__asmeq("%3", "r1")					\
-		"bl	__put_user_" #__s				\
-		: "=&r" (__e)						\
-		: "0" (__p), "r" (__r2), "r" (__l)			\
-		: "ip", "lr", "cc")
+		"mov	r0, %1\n\t"					\
+		"mov	r2, %2\n\t"					\
+		"mov	r1, %3\n\t"					\
+		"bl	__put_user_" #__s "\n\t"			\
+		"mov	%0, r0"						\
+		: "=r" (__e)						\
+		: "r" (__p), "r" (__r2), "r" (__l)			\
+		: "r0", "r1", "r2", "r3", "ip", "lr", "cc", "memory")
+
+/* __put_user_8 follows the ARM EABI: its value occupies r2:r3. */
+#define __put_user_8_x(__r2,__p,__e,__l)				\
+	   __asm__ __volatile__ (					\
+		"mov	r0, %1\n\t"					\
+		"mov	r2, %Q2\n\t"					\
+		"mov	r3, %R2\n\t"					\
+		"mov	r1, %3\n\t"					\
+		"bl	__put_user_8\n\t"				\
+		"mov	%0, r0"						\
+		: "=r" (__e)						\
+		: "r" (__p), "r" (__r2), "r" (__l)			\
+		: "r0", "r1", "r2", "r3", "ip", "lr", "cc", "memory")
 
 #define put_user(x,p)							\
 	({								\
 		unsigned long __limit = current_thread_info()->addr_limit - 1; \
-		register const typeof(*(p)) __r2 asm("r2") = (x);	\
-		register const typeof(*(p)) __user *__p asm("r0") = (p);\
-		register unsigned long __l asm("r1") = __limit;		\
-		register int __e asm("r0");				\
+			const typeof(*(p)) __r2 = (x);				\
+			const typeof(*(p)) __user *__p = (p);			\
+			unsigned long __l = __limit;				\
+			int __e;						\
 		unsigned int __ua_flags = uaccess_save_and_enable();	\
 		switch (sizeof(*(__p))) {				\
 		case 1:							\
@@ -238,7 +253,7 @@ extern int __put_user_8(void *, unsigned long long);
 			__put_user_x(__r2, __p, __e, __l, 4);		\
 			break;						\
 		case 8:							\
-			__put_user_x(__r2, __p, __e, __l, 8);		\
+			__put_user_8_x(__r2, __p, __e, __l);		\
 			break;						\
 		default: __e = __put_user_bad(); break;			\
 		}							\
