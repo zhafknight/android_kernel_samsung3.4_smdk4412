@@ -1920,7 +1920,8 @@ out:
 /* Report the first existing lock that would conflict with l.
  * This implements the F_GETLK command of fcntl().
  */
-int fcntl_getlk64(struct file *filp, struct flock64 __user *l)
+int fcntl_getlk64(struct file *filp, unsigned int cmd,
+		  struct flock64 __user *l)
 {
 	struct file_lock file_lock;
 	struct flock64 flock;
@@ -1936,6 +1937,11 @@ int fcntl_getlk64(struct file *filp, struct flock64 __user *l)
 	error = flock64_to_posix_lock(filp, &file_lock, &flock);
 	if (error)
 		goto out;
+	if (cmd == F_OFD_GETLK) {
+		file_lock.fl_owner = (fl_owner_t)filp;
+		file_lock.fl_pid = 0;
+		file_lock.fl_flags |= FL_OFDLCK;
+	}
 
 	error = vfs_test_lock(filp, &file_lock);
 	if (error)
@@ -1964,6 +1970,7 @@ int fcntl_setlk64(unsigned int fd, struct file *filp, unsigned int cmd,
 	struct inode *inode;
 	struct file *f;
 	int error;
+	unsigned int lock_cmd;
 
 	if (file_lock == NULL)
 		return -ENOLCK;
@@ -1989,7 +1996,13 @@ again:
 	error = flock64_to_posix_lock(filp, file_lock, &flock);
 	if (error)
 		goto out;
-	if (cmd == F_SETLKW64) {
+	if (cmd == F_OFD_SETLK || cmd == F_OFD_SETLKW) {
+		/* OFD locks are owned by this open file, not current->files. */
+		file_lock->fl_owner = (fl_owner_t)filp;
+		file_lock->fl_pid = 0;
+		file_lock->fl_flags |= FL_OFDLCK;
+	}
+	if (cmd == F_SETLKW64 || cmd == F_OFD_SETLKW) {
 		file_lock->fl_flags |= FL_SLEEP;
 	}
 	
@@ -2010,18 +2023,25 @@ again:
 		goto out;
 	}
 
-	error = do_lock_file_wait(filp, cmd, file_lock);
+	lock_cmd = cmd;
+	if (cmd == F_OFD_SETLK)
+		lock_cmd = F_SETLK;
+	else if (cmd == F_OFD_SETLKW)
+		lock_cmd = F_SETLKW;
+	error = do_lock_file_wait(filp, lock_cmd, file_lock);
 
 	/*
 	 * Attempt to detect a close/fcntl race and recover by
 	 * releasing the lock that was just acquired.
 	 */
-	spin_lock(&current->files->file_lock);
-	f = fcheck(fd);
-	spin_unlock(&current->files->file_lock);
-	if (!error && f != filp && flock.l_type != F_UNLCK) {
-		flock.l_type = F_UNLCK;
-		goto again;
+	if (cmd != F_OFD_SETLK && cmd != F_OFD_SETLKW) {
+		spin_lock(&current->files->file_lock);
+		f = fcheck(fd);
+		spin_unlock(&current->files->file_lock);
+		if (!error && f != filp && flock.l_type != F_UNLCK) {
+			flock.l_type = F_UNLCK;
+			goto again;
+		}
 	}
 
 out:
@@ -2096,6 +2116,10 @@ void locks_remove_flock(struct file *filp)
 	while ((fl = *before) != NULL) {
 		if (fl->fl_file == filp) {
 			if (IS_FLOCK(fl)) {
+				locks_delete_lock(before);
+				continue;
+			}
+			if (fl->fl_flags & FL_OFDLCK) {
 				locks_delete_lock(before);
 				continue;
 			}

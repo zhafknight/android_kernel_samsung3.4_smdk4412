@@ -120,6 +120,17 @@
 #define F_GETOWN_EX	16
 #endif
 
+/*
+ * Open file description locks.  These are owned by the open file rather
+ * than the process and are therefore released only when its final file
+ * descriptor is closed.  Android's BPF map locking uses this interface.
+ */
+#ifndef F_OFD_GETLK
+#define F_OFD_GETLK	36
+#define F_OFD_SETLK	37
+#define F_OFD_SETLKW	38
+#endif
+
 #define F_OWNER_TID	0
 #define F_OWNER_PID	1
 #define F_OWNER_PGRP	2
