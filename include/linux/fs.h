@@ -1102,6 +1102,7 @@ static inline int file_check_writeable(struct file *filp)
 #define FL_SLEEP	128	/* A blocking lock */
 #define FL_DOWNGRADE_PENDING	256 /* Lease is being downgraded */
 #define FL_UNLOCK_PENDING	512 /* Lease is being broken */
+#define FL_OFDLCK	1024	/* lock owned by an open file description */
 
 /*
  * Special return value from posix_lock_file() and vfs_lock_file() for
@@ -1110,9 +1111,9 @@ static inline int file_check_writeable(struct file *filp)
 #define FILE_LOCK_DEFERRED 1
 
 /*
- * The POSIX file lock owner is determined by
- * the "struct files_struct" in the thread group
- * (or NULL for no owner - BSD locks).
+ * The POSIX file lock owner is normally determined by the
+ * "struct files_struct" in the thread group (or NULL for no owner - BSD
+ * locks).  Open file description locks use the struct file pointer instead.
  *
  * Lockd stuffs a "host" pointer into this.
  */
@@ -1191,7 +1192,8 @@ extern int fcntl_setlk(unsigned int, struct file *, unsigned int,
 			struct flock __user *);
 
 #if BITS_PER_LONG == 32
-extern int fcntl_getlk64(struct file *, struct flock64 __user *);
+extern int fcntl_getlk64(struct file *, unsigned int,
+			 struct flock64 __user *);
 extern int fcntl_setlk64(unsigned int, struct file *, unsigned int,
 			struct flock64 __user *);
 #endif
@@ -1239,7 +1241,8 @@ static inline int fcntl_setlk(unsigned int fd, struct file *file,
 }
 
 #if BITS_PER_LONG == 32
-static inline int fcntl_getlk64(struct file *file, struct flock64 __user *user)
+static inline int fcntl_getlk64(struct file *file, unsigned int cmd,
+				struct flock64 __user *user)
 {
 	return -EINVAL;
 }
