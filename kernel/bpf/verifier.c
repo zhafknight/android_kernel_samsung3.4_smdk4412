@@ -1005,14 +1005,16 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 	return err;
 }
 
-static int check_xadd(struct bpf_verifier_env *env, int insn_idx, struct bpf_insn *insn)
+static int check_xadd(struct bpf_verifier_env *env, int insn_idx,
+		      struct bpf_insn *insn)
 {
 	struct bpf_reg_state *regs = env->cur_state.regs;
 	int err;
 
 	if ((BPF_SIZE(insn->code) != BPF_W && BPF_SIZE(insn->code) != BPF_DW) ||
-	    insn->imm != 0) {
-		verbose("BPF_XADD uses reserved fields\n");
+	    (insn->imm != BPF_ADD &&
+	     insn->imm != (BPF_ADD | BPF_FETCH))) {
+		verbose("BPF_ATOMIC uses invalid atomic opcode %02x\n", insn->imm);
 		return -EINVAL;
 	}
 
@@ -1037,13 +1039,25 @@ static int check_xadd(struct bpf_verifier_env *env, int insn_idx, struct bpf_ins
 		return -EACCES;
 	}
 
-	/* check whether atomic_add can read the memory */
+	/* Check whether the atomic operation can read the memory. */
 	err = check_mem_access(env, insn_idx, insn->dst_reg, insn->off,
 			       BPF_SIZE(insn->code), BPF_READ, -1);
 	if (err)
 		return err;
 
-	/* check whether atomic_add can write into the same memory */
+	/*
+	 * atomic_fetch_add() writes the pre-add value into src_reg.  Model that
+	 * read explicitly so later verifier state matches the eBPF ABI.
+	 */
+	if (insn->imm & BPF_FETCH) {
+		err = check_mem_access(env, insn_idx, insn->dst_reg, insn->off,
+				       BPF_SIZE(insn->code), BPF_READ,
+				       insn->src_reg);
+		if (err)
+			return err;
+	}
+
+	/* Check whether the atomic operation can write into the same memory. */
 	return check_mem_access(env, insn_idx, insn->dst_reg, insn->off,
 				BPF_SIZE(insn->code), BPF_WRITE, -1);
 }
@@ -3502,7 +3516,11 @@ static int replace_map_fd_with_map_ptr(struct bpf_verifier_env *env)
 
 		if (BPF_CLASS(insn->code) == BPF_STX &&
 		    ((BPF_MODE(insn->code) != BPF_MEM &&
-		      BPF_MODE(insn->code) != BPF_XADD) || insn->imm != 0)) {
+		      BPF_MODE(insn->code) != BPF_ATOMIC) ||
+		     (BPF_MODE(insn->code) == BPF_MEM && insn->imm != 0) ||
+		     (BPF_MODE(insn->code) == BPF_ATOMIC &&
+		      insn->imm != BPF_ADD &&
+		      insn->imm != (BPF_ADD | BPF_FETCH)))) {
 			verbose("BPF_STX uses reserved fields\n");
 			return -EINVAL;
 		}

@@ -1628,13 +1628,14 @@ exit:
 			break;
 		}
 		break;
-	/* STX XADD: lock *(u32 *)(dst + off) += src */
-	case BPF_STX | BPF_XADD | BPF_W:
-	/* STX XADD: lock *(u64 *)(dst + off) += src */
-	case BPF_STX | BPF_XADD | BPF_DW:
+	/* STX ATOMIC: lock *(u32 *)(dst + off) += src */
+	case BPF_STX | BPF_ATOMIC | BPF_W:
+	/* STX ATOMIC: lock *(u64 *)(dst + off) += src */
+	case BPF_STX | BPF_ATOMIC | BPF_DW:
 	{
 		u8 sz = BPF_SIZE(code);
 		u8 rn, s_lo, s_hi;
+		bool fetch = imm & BPF_FETCH;
 		int loop_off;
 
 		/* 1. Calculate the target address into ARM_IP (R12) */
@@ -1659,44 +1660,68 @@ exit:
 		}
 
 		if (sz == BPF_W) {
-			/* 32-bit atomic XADD:
+			/* 32-bit atomic add:
 			 * loop:
-			 *   LDREX  tmp2[0], [ARM_IP]       ; Exclusive reading
-			 *   ADD    tmp2[0], tmp2[0], s_lo  ; Addition
+			 *   LDREX  tmp[1], [ARM_IP]       ; Exclusive reading
+			 *   ADD    tmp2[0], tmp2[1], s_lo ; Addition
 			 *   STREX  tmp[0], tmp2[0], [ARM_IP]; Exclusive writing (status in tmp[0])
 			 *   CMP    tmp[0], #0              ; Success? (0 = success)
 			 *   BNE    loop                    ; Retry if not
 			 */
 			emit(ARM_DMB_ISH(), ctx); /* Barrier before operation */
 			loop_off = ctx->idx;
-			emit(ARM_LDREX(tmp2[0], rn), ctx);
-			emit(ARM_ADD_R(tmp2[0], tmp2[0], s_lo), ctx);
+			emit(ARM_LDREX(tmp[1], rn), ctx);
+			emit(ARM_ADD_R(tmp2[0], tmp[1], s_lo), ctx);
 			emit(ARM_STREX(tmp[0], tmp2[0], rn), ctx);
 			emit(ARM_CMP_I(tmp[0], 0), ctx);
 			jmp_offset = loop_off - ctx->idx - 2;
 			_emit(ARM_COND_NE, ARM_B(jmp_offset), ctx);
 			emit(ARM_DMB_ISH(), ctx); /* Barrier after operation */
+			if (fetch) {
+				if (sstk)
+					emit(ARM_STR_I(tmp[1], ARM_SP,
+						       STACK_VAR(src_lo)), ctx);
+				else
+					emit(ARM_MOV_R(src_lo, tmp[1]), ctx);
+			}
 		} else {
-			/* 64-bit atomic XADD:
-			 * Using an even-odd pair of regs tmp[1] (R6) and tmp[0] (R7)
+			/* 64-bit atomic add:
+			 * tmp[1]:tmp[0] (R6:R7) holds the old value.  The new value
+			 * is assembled in R8:R9 so atomic_fetch_add can return the old
+			 * value without changing the exclusive-store retry semantics.
+			 * R9 is callee-saved by the ARM ABI, so preserve it with LR to
+			 * keep the stack 8-byte aligned while this sequence uses R9.
 			 * loop:
 			 *   LDREXD R6, [ARM_IP]             ; Exclusive 64-бит load into R6:R7
-			 *   ADDS   R6, R6, s_lo             ; Addition of the low-order part + carry flag
-			 *   ADC    R7, R7, s_hi             ; Addition of the high-order part with carry
-			 *   STREXD ARM_LR, R6, [ARM_IP]     ; Exclusive 64-bit write (status in LR)
+			 *   ADDS   R8, R6, s_lo             ; Addition of the low-order part + carry flag
+			 *   ADC    R9, R7, s_hi             ; Addition of the high-order part with carry
+			 *   STREXD ARM_LR, R8, [ARM_IP]     ; Exclusive 64-bit write (status in LR)
 			 *   CMP    ARM_LR, #0               ; Success? (0 = success)
 			 *   BNE    loop                     ; Retry if not
 			 */
+			emit(ARM_PUSH((1 << ARM_R9) | (1 << ARM_LR)), ctx);
 			emit(ARM_DMB_ISH(), ctx); /* Barrier before operation */
 			loop_off = ctx->idx;
 			emit(ARM_LDREXD(tmp[1], rn), ctx);
-			emit(ARM_ADDS_R(tmp[1], tmp[1], s_lo), ctx);
-			emit(ARM_ADC_R(tmp[0], tmp[0], s_hi), ctx);
-			emit(ARM_STREXD(ARM_LR, tmp[1], rn), ctx);
+			emit(ARM_ADDS_R(tmp2[1], tmp[1], s_lo), ctx);
+			emit(ARM_ADC_R(ARM_R9, tmp[0], s_hi), ctx);
+			emit(ARM_STREXD(ARM_LR, tmp2[1], rn), ctx);
 			emit(ARM_CMP_I(ARM_LR, 0), ctx);
 			jmp_offset = loop_off - ctx->idx - 2;
 			_emit(ARM_COND_NE, ARM_B(jmp_offset), ctx);
 			emit(ARM_DMB_ISH(), ctx); /* Barrier after operation */
+			emit(ARM_POP((1 << ARM_R9) | (1 << ARM_LR)), ctx);
+			if (fetch) {
+				if (sstk) {
+					emit(ARM_STR_I(tmp[1], ARM_SP,
+						       STACK_VAR(src_lo)), ctx);
+					emit(ARM_STR_I(tmp[0], ARM_SP,
+						       STACK_VAR(src_hi)), ctx);
+				} else {
+					emit(ARM_MOV_R(src_lo, tmp[1]), ctx);
+					emit(ARM_MOV_R(src_hi, tmp[0]), ctx);
+				}
+			}
 		}
 		break;
 	}
