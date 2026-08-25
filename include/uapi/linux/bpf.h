@@ -17,7 +17,15 @@
 
 /* ld/ldx fields */
 #define BPF_DW		0x18	/* double word */
-#define BPF_XADD	0xc0	/* exclusive add */
+/*
+ * Atomic operations are encoded as BPF_STX with this mode.  BPF_XADD is
+ * retained as the name used by older userspace and kernel code.
+ */
+#define BPF_ATOMIC	0xc0
+#define BPF_XADD	BPF_ATOMIC
+
+/* Atomic operation flags stored in struct bpf_insn::imm. */
+#define BPF_FETCH	0x01	/* return the value before the operation */
 
 /* alu/jmp fields */
 #define BPF_MOV		0xb0	/* mov reg to reg */
