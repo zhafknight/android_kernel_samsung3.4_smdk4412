@@ -7889,8 +7889,9 @@ static int cpu_cgroup_can_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
 		if (!sched_rt_can_attach(cgroup_tg(cgrp), task))
 			return -EINVAL;
 #else
-		/* We don't support RT-tasks being in separate groups */
-		if (task->sched_class != &fair_sched_class)
+		/* Keep RT scheduling global while allowing CPU cgroup membership. */
+		if (task->sched_class != &fair_sched_class &&
+		    task->sched_class != &rt_sched_class)
 			return -EINVAL;
 #endif
 	}
