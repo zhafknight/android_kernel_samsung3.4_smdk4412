@@ -27,6 +27,7 @@
  */
 
 #include <linux/cgroup.h>
+#include <linux/capability.h>
 #include <linux/cred.h>
 #include <linux/ctype.h>
 #include <linux/errno.h>
@@ -271,7 +272,14 @@ EXPORT_SYMBOL_GPL(cgroup_is_descendant);
 /* bits in struct cgroupfs_root flags field */
 enum {
 	ROOT_NOPREFIX, /* mounted subsystems have no named prefix */
+	ROOT_CPUSET_V2_MODE, /* preserve requested cpuset masks on hotplug */
 };
+
+bool cgroup_cpuset_v2_mode(const struct cgroup *cgrp)
+{
+	return cgrp &&
+		test_bit(ROOT_CPUSET_V2_MODE, &cgrp->root->flags);
+}
 
 static int cgroup_is_releasable(const struct cgroup *cgrp)
 {
@@ -1090,6 +1098,8 @@ static int cgroup_show_options(struct seq_file *seq, struct dentry *dentry)
 		seq_printf(seq, ",%s", ss->name);
 	if (test_bit(ROOT_NOPREFIX, &root->flags))
 		seq_puts(seq, ",noprefix");
+	if (test_bit(ROOT_CPUSET_V2_MODE, &root->flags))
+		seq_puts(seq, ",cpuset_v2_mode");
 	if (strlen(root->release_agent_path))
 		seq_printf(seq, ",release_agent=%s", root->release_agent_path);
 	if (clone_children(&root->top_cgroup))
@@ -1153,6 +1163,14 @@ static int parse_cgroupfs_options(char *data, struct cgroup_sb_opts *opts)
 		if (!strcmp(token, "noprefix")) {
 			set_bit(ROOT_NOPREFIX, &opts->flags);
 			continue;
+		}
+		if (!strcmp(token, "cpuset_v2_mode")) {
+#ifdef CONFIG_CPUSETS
+			set_bit(ROOT_CPUSET_V2_MODE, &opts->flags);
+			continue;
+#else
+			return -ENOENT;
+#endif
 		}
 		if (!strcmp(token, "clone_children")) {
 			opts->clone_children = true;
@@ -1241,6 +1259,12 @@ static int parse_cgroupfs_options(char *data, struct cgroup_sb_opts *opts)
 	if (test_bit(ROOT_NOPREFIX, &opts->flags) &&
 	    (opts->subsys_bits & mask))
 		return -EINVAL;
+
+#ifdef CONFIG_CPUSETS
+	if (test_bit(ROOT_CPUSET_V2_MODE, &opts->flags) &&
+	    opts->subsys_bits != (1UL << cpuset_subsys_id))
+		return -EINVAL;
+#endif
 
 
 	/* Can't specify "none" and some subsystems */
@@ -2304,7 +2328,8 @@ static int attach_task_by_pid(struct cgroup *cgrp, u64 pid, bool threadgroup)
 		tcred = __task_cred(tsk);
 		if (cred->euid &&
 		    cred->euid != tcred->uid &&
-		    cred->euid != tcred->suid) {
+		    cred->euid != tcred->suid &&
+		    !capable(CAP_SYS_NICE)) {
 			rcu_read_unlock();
 			cgroup_unlock();
 			return -EACCES;
