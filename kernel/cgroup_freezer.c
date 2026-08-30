@@ -359,6 +359,53 @@ static struct cftype files[] = {
 	},
 };
 
+static int freezer_v2_read(struct cgroup *cgroup, struct cftype *cft,
+			   struct seq_file *m)
+{
+	struct freezer *freezer;
+	enum freezer_state state;
+
+	if (!cgroup_lock_live_group(cgroup))
+		return -ENODEV;
+	freezer = cgroup_freezer(cgroup);
+	spin_lock_irq(&freezer->lock);
+	update_if_frozen(cgroup, freezer);
+	state = freezer->state;
+	spin_unlock_irq(&freezer->lock);
+	cgroup_unlock();
+	seq_printf(m, "%d\n", state != CGROUP_THAWED);
+	return 0;
+}
+
+static int freezer_v2_write(struct cgroup *cgroup, struct cftype *cft,
+			    const char *buffer)
+{
+	enum freezer_state state;
+	int ret;
+
+	if (!strcmp(buffer, "0"))
+		state = CGROUP_THAWED;
+	else if (!strcmp(buffer, "1"))
+		state = CGROUP_FROZEN;
+	else
+		return -EINVAL;
+	if (!cgroup_lock_live_group(cgroup))
+		return -ENODEV;
+	ret = freezer_change_state(cgroup, state);
+	cgroup_unlock();
+	if (state == CGROUP_FROZEN && ret == -EBUSY)
+		ret = 0;
+	return ret;
+}
+
+static struct cftype v2_files[] = {
+	{
+		.name = "cgroup.freeze",
+		.read_seq_string = freezer_v2_read,
+		.write_string = freezer_v2_write,
+	},
+};
+
 static int freezer_populate(struct cgroup_subsys *ss, struct cgroup *cgroup)
 {
 	if (!cgroup->parent)
@@ -366,11 +413,18 @@ static int freezer_populate(struct cgroup_subsys *ss, struct cgroup *cgroup)
 	return cgroup_add_files(cgroup, ss, files, ARRAY_SIZE(files));
 }
 
+static int freezer_populate_v2(struct cgroup_subsys *ss,
+			       struct cgroup *cgroup)
+{
+	return cgroup_add_files(cgroup, NULL, v2_files, ARRAY_SIZE(v2_files));
+}
+
 struct cgroup_subsys freezer_subsys = {
 	.name		= "freezer",
 	.create		= freezer_create,
 	.destroy	= freezer_destroy,
 	.populate	= freezer_populate,
+	.populate_v2	= freezer_populate_v2,
 	.subsys_id	= freezer_subsys_id,
 	.can_attach	= freezer_can_attach,
 	.fork		= freezer_fork,
