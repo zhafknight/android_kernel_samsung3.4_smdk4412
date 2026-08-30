@@ -16,6 +16,7 @@
 #include <linux/prio_heap.h>
 #include <linux/rwsem.h>
 #include <linux/idr.h>
+#include <linux/poll.h>
 #include <linux/bpf-cgroup.h>
 
 #ifdef CONFIG_CGROUPS
@@ -33,6 +34,7 @@ extern int cgroup_lock_is_held(void);
 extern bool cgroup_lock_live_group(struct cgroup *cgrp);
 extern void cgroup_unlock(void);
 extern bool cgroup_cpuset_v2_mode(const struct cgroup *cgrp);
+extern bool cgroup_on_dfl(const struct cgroup *cgrp);
 extern void cgroup_fork(struct task_struct *p);
 extern void cgroup_fork_callbacks(struct task_struct *p);
 extern void cgroup_post_fork(struct task_struct *p);
@@ -196,6 +198,9 @@ struct cgroup_pidlist {
 
 struct cgroup {
 	unsigned long flags;		/* "unsigned long" so bitops work */
+	unsigned long subtree_control;
+	wait_queue_head_t events_wait;
+	atomic_t events_seq;
 
 	/*
 	 * count users of this cgroup. >0 means busy, but doesn't
@@ -281,6 +286,7 @@ struct css_set {
 	 * css_set_lock
 	 */
 	struct list_head cg_links;
+	struct cgroup *dfl_cgrp;
 
 	/*
 	 * Set of subsystem states, one for each subsystem. This array
@@ -391,6 +397,8 @@ struct cftype {
 	int (*trigger)(struct cgroup *cgrp, unsigned int event);
 
 	int (*release)(struct inode *inode, struct file *file);
+	unsigned int (*poll)(struct cgroup *cgrp, struct cftype *cft,
+			     struct file *file, poll_table *wait);
 
 	/*
 	 * register_event() callback will be used to add new userspace
@@ -502,6 +510,8 @@ struct cgroup_subsys {
 			struct cgroup *old_cgrp, struct task_struct *task);
 	int (*populate)(struct cgroup_subsys *ss,
 			struct cgroup *cgrp);
+	int (*populate_v2)(struct cgroup_subsys *ss,
+			   struct cgroup *cgrp);
 	void (*post_clone)(struct cgroup_subsys *ss, struct cgroup *cgrp);
 	void (*bind)(struct cgroup_subsys *ss, struct cgroup *root);
 
