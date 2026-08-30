@@ -20,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/highmem.h>
 #include <linux/vmpressure.h>
+#include <linux/psi.h>
 #include <linux/vmstat.h>
 #include <linux/file.h>
 #include <linux/writeback.h>
@@ -2523,6 +2524,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
 				gfp_t gfp_mask, nodemask_t *nodemask)
 {
 	unsigned long nr_reclaimed;
+	unsigned long psi_flags;
 	struct scan_control sc = {
 		.gfp_mask = (gfp_mask = memalloc_noio_flags(gfp_mask)),
 		.may_writepage = !laptop_mode,
@@ -2545,7 +2547,9 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
 				sc.may_writepage,
 				gfp_mask);
 
+	psi_memstall_enter(&psi_flags);
 	nr_reclaimed = do_try_to_free_pages(zonelist, &sc, &shrink);
+	psi_memstall_leave(&psi_flags);
 
 	trace_mm_vmscan_direct_reclaim_end(nr_reclaimed);
 
@@ -2601,6 +2605,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
 {
 	struct zonelist *zonelist;
 	unsigned long nr_reclaimed;
+	unsigned long psi_flags;
 	int nid;
 	struct scan_control sc = {
 		.may_writepage = !laptop_mode,
@@ -2630,7 +2635,9 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
 					    sc.may_writepage,
 					    sc.gfp_mask);
 
+	psi_memstall_enter(&psi_flags);
 	nr_reclaimed = do_try_to_free_pages(zonelist, &sc, &shrink);
+	psi_memstall_leave(&psi_flags);
 
 	trace_mm_vmscan_memcg_reclaim_end(nr_reclaimed);
 
@@ -2766,6 +2773,7 @@ static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining,
 static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
 							int *classzone_idx)
 {
+	unsigned long psi_flags;
 	int all_zones_ok;
 	unsigned long balanced;
 	int priority;
@@ -2798,6 +2806,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
 	struct shrink_control shrink = {
 		.gfp_mask = sc.gfp_mask,
 	};
+	psi_memstall_enter(&psi_flags);
 loop_again:
 	total_scanned = 0;
 	sc.nr_reclaimed = 0;
@@ -3079,6 +3088,7 @@ out:
 	 * was awake, order will remain at the higher level
 	 */
 	*classzone_idx = end_zone;
+	psi_memstall_leave(&psi_flags);
 	return order;
 }
 

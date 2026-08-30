@@ -649,6 +649,14 @@ config CGROUP_FREEZER
 	  Provides a way to freeze and unfreeze all tasks in a
 	  cgroup.
 
+config PSI
+	bool "Pressure stall information tracking"
+	default n
+	help
+	  Collect system-wide CPU, memory and IO pressure stall metrics. This
+	  creates /proc/pressure, where userspace low-memory daemons can poll
+	  memory pressure thresholds.
+
 config CGROUP_TIMER_SLACK
 	tristate "Timer slack cgroup subsystem"
 	help

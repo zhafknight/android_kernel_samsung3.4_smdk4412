@@ -1353,10 +1353,16 @@ struct task_struct {
 	unsigned in_execve:1;	/* Tell the LSMs that the process is doing an
 				 * execve */
 	unsigned in_iowait:1;
+#ifdef CONFIG_PSI
+	unsigned int psi_flags;
+#endif
 
 	/* Revert to default priority/policy when forking */
 	unsigned sched_reset_on_fork:1;
 	unsigned sched_contributes_to_load:1;
+#ifdef CONFIG_PSI
+	unsigned sched_psi_wake_requeue:1;
+#endif
 
 #ifdef CONFIG_GENERIC_HARDIRQS
 	/* IRQ handler threads */
@@ -1841,6 +1847,7 @@ extern int task_free_unregister(struct notifier_block *n);
 #define PF_MEMPOLICY	0x10000000	/* Non-default NUMA mempolicy */
 #define PF_MUTEX_TESTER	0x20000000	/* Thread belongs to the rt mutex tester */
 #define PF_FREEZER_SKIP	0x40000000	/* Freezer should not count it as freezable */
+#define PF_MEMSTALL	0x80000000	/* Stalled due to memory pressure */
 
 /*
  * Only the _current_ task can read/write to tsk->flags, but other

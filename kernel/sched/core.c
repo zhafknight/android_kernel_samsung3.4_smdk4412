@@ -72,6 +72,7 @@
 #include <linux/slab.h>
 #include <linux/init_task.h>
 #include <linux/binfmts.h>
+#include <linux/psi.h>
 
 #include <asm/switch_to.h>
 #include <asm/tlb.h>
@@ -342,6 +343,25 @@ task_rq_unlock(struct rq *rq, struct task_struct *p, unsigned long *flags)
 	raw_spin_unlock(&rq->lock);
 	raw_spin_unlock_irqrestore(&p->pi_lock, *flags);
 }
+
+#ifdef CONFIG_PSI
+static void psi_ttwu_dequeue(struct task_struct *task)
+{
+	unsigned int clear;
+	struct rq *rq;
+
+	clear = task->psi_flags & (TSK_IOWAIT | TSK_MEMSTALL);
+	if (!clear)
+		return;
+	rq = __task_rq_lock(task);
+	psi_task_change(task, clear, 0);
+	task->sched_psi_wake_requeue = 1;
+	__task_rq_unlock(rq);
+}
+
+#else
+static inline void psi_ttwu_dequeue(struct task_struct *task) { }
+#endif
 
 /*
  * this_rq_lock - lock this runqueue and disable interrupts.
@@ -716,6 +736,7 @@ static void enqueue_task(struct rq *rq, struct task_struct *p, int flags)
 {
 	update_rq_clock(rq);
 	sched_info_queued(p);
+	psi_enqueue(p, flags & ENQUEUE_WAKEUP);
 	p->sched_class->enqueue_task(rq, p, flags);
 }
 
@@ -723,6 +744,7 @@ static void dequeue_task(struct rq *rq, struct task_struct *p, int flags)
 {
 	update_rq_clock(rq);
 	sched_info_dequeued(p);
+	psi_dequeue(p, flags & DEQUEUE_SLEEP);
 	p->sched_class->dequeue_task(rq, p, flags);
 }
 
@@ -1628,6 +1650,7 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
 	cpu = select_task_rq(p, SD_BALANCE_WAKE, wake_flags);
 	if (task_cpu(p) != cpu) {
 		wake_flags |= WF_MIGRATED;
+		psi_ttwu_dequeue(p);
 		set_task_cpu(p, cpu);
 	}
 #endif /* CONFIG_SMP */
@@ -3176,6 +3199,7 @@ void scheduler_tick(void)
 	update_rq_clock(rq);
 	update_cpu_load_active(rq);
 	curr->sched_class->task_tick(rq, curr, 0);
+	psi_memstall_tick(curr, cpu);
 	raw_spin_unlock(&rq->lock);
 
 	perf_event_task_tick();
@@ -7288,6 +7312,7 @@ void __init sched_init(void)
 		zalloc_cpumask_var(&cpu_isolated_map, GFP_NOWAIT);
 #endif
 	init_sched_fair_class();
+	psi_init();
 
 	scheduler_running = 1;
 }

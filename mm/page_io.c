@@ -17,6 +17,7 @@
 #include <linux/swap.h>
 #include <linux/bio.h>
 #include <linux/swapops.h>
+#include <linux/psi.h>
 #include <linux/writeback.h>
 #include <linux/aio.h>
 #include <linux/blkdev.h>
@@ -161,9 +162,11 @@ int swap_readpage(struct page *page)
 {
 	struct bio *bio;
 	int ret = 0;
+	unsigned long psi_flags;
 
 	VM_BUG_ON(!PageLocked(page));
 	VM_BUG_ON(PageUptodate(page));
+	psi_memstall_enter(&psi_flags);
 	bio = get_swap_bio(GFP_KERNEL, page, end_swap_bio_read);
 	if (bio == NULL) {
 		unlock_page(page);
@@ -173,5 +176,6 @@ int swap_readpage(struct page *page)
 	count_vm_event(PSWPIN);
 	submit_bio(READ, bio);
 out:
+	psi_memstall_leave(&psi_flags);
 	return ret;
 }
