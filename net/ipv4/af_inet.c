@@ -454,6 +454,7 @@ int inet_release(struct socket *sock)
 	if (sk) {
 		long timeout;
 
+		BPF_CGROUP_RUN_PROG_INET_SOCK_RELEASE(sk);
 		sock_rps_reset_flow(sk);
 
 		/* Applications forget to leave groups before exiting */
@@ -1882,4 +1883,3 @@ static int __init ipv4_proc_init(void)
 #endif /* CONFIG_PROC_FS */
 
 MODULE_ALIAS_NETPROTO(PF_INET);
-

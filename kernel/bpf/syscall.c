@@ -1298,9 +1298,9 @@ static int bpf_prog_attach(const union bpf_attr *attr)
 					attr->attach_flags);
 		if (ret)
 			bpf_prog_put(prog);
-		atomic_dec(&cgrp->count);
 		break;
 	case BPF_CGROUP_INET_SOCK_CREATE:
+	case BPF_CGROUP_INET_SOCK_RELEASE:
 		prog = bpf_prog_get_type(attr->attach_bpf_fd,
 					 BPF_PROG_TYPE_CGROUP_SOCK);
 		if (IS_ERR(prog))
@@ -1363,6 +1363,7 @@ static int bpf_prog_attach(const union bpf_attr *attr)
 		return -EINVAL;
 	}
 
+	atomic_dec(&cgrp->count);
 	return ret;
 }
 
@@ -1387,6 +1388,7 @@ static int bpf_prog_detach(const union bpf_attr *attr)
 		ptype = BPF_PROG_TYPE_CGROUP_SKB;
 		break;
 	case BPF_CGROUP_INET_SOCK_CREATE:
+	case BPF_CGROUP_INET_SOCK_RELEASE:
 		ptype = BPF_PROG_TYPE_CGROUP_SOCK;
 		break;
 	case BPF_CGROUP_INET4_BIND:
@@ -1441,6 +1443,7 @@ static int bpf_prog_query(const union bpf_attr *attr,
 	case BPF_CGROUP_INET_INGRESS:
 	case BPF_CGROUP_INET_EGRESS:
 	case BPF_CGROUP_INET_SOCK_CREATE:
+	case BPF_CGROUP_INET_SOCK_RELEASE:
 	case BPF_CGROUP_INET4_BIND:
 	case BPF_CGROUP_INET6_BIND:
 	case BPF_CGROUP_INET4_CONNECT:
@@ -1459,6 +1462,7 @@ static int bpf_prog_query(const union bpf_attr *attr,
 	if (IS_ERR(cgrp))
 		return PTR_ERR(cgrp);
 	ret = cgroup_bpf_query(cgrp, attr, uattr);
+	atomic_dec(&cgrp->count);
 	return ret;
 }
 #endif /* CONFIG_CGROUP_BPF */

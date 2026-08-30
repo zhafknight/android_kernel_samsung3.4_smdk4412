@@ -463,14 +463,14 @@ int __cgroup_bpf_run_filter(struct sock *sk,
 		return 0;
 
 	cgrp = sk->skcg;
-	if(cgrp == NULL)
+	if (!cgrp)
 		return 0;
 
 	save_sk = skb->sk;
 	skb->sk = sk;
 	__skb_push(skb, offset);
-	ret = BPF_PROG_RUN_ARRAY(cgrp->bpf.effective[type], skb,
-				 bpf_prog_run_save_cb);
+	ret = BPF_PROG_RUN_ARRAY_CHECK(cgrp->bpf.effective[type], skb,
+				       bpf_prog_run_save_cb);
 	__skb_pull(skb, offset);
 	skb->sk = save_sk;
 	return ret == 1 ? 0 : -EPERM;
@@ -516,7 +516,10 @@ int __cgroup_bpf_run_filter_sock_addr(struct sock *sk,
 	}
 
 	cgrp = sk->skcg;
-	ret = BPF_PROG_RUN_ARRAY(cgrp->bpf.effective[type], &ctx, BPF_PROG_RUN);
+	if (!cgrp)
+		return 0;
+	ret = BPF_PROG_RUN_ARRAY_CHECK(cgrp->bpf.effective[type], &ctx,
+				       BPF_PROG_RUN);
 
 	return ret == 1 ? 0 : -EPERM;
 }
@@ -527,6 +530,9 @@ static bool __cgroup_bpf_prog_array_is_empty(struct cgroup *cgrp,
 {
 	struct bpf_prog_array *prog_array;
 	bool empty;
+
+	if (!cgrp)
+		return true;
 
 	rcu_read_lock();
 	prog_array = rcu_dereference(cgrp->bpf.effective[attach_type]);
@@ -577,7 +583,8 @@ int __cgroup_bpf_run_filter_setsockopt(struct sock *sk, int *level,
 	 * attached to the hook so we don't waste time allocating
 	 * memory and locking the socket.
 	 */
-	if (cgrp == NULL || __cgroup_bpf_prog_array_is_empty(cgrp, BPF_CGROUP_SETSOCKOPT))
+	if (!cgrp ||
+	    __cgroup_bpf_prog_array_is_empty(cgrp, BPF_CGROUP_SETSOCKOPT))
 		return 0;
 
 	/* Allocate a bit more than the initial user buffer for
@@ -598,8 +605,8 @@ int __cgroup_bpf_run_filter_setsockopt(struct sock *sk, int *level,
 	}
 
 	lock_sock(sk);
-	ret = BPF_PROG_RUN_ARRAY(cgrp->bpf.effective[BPF_CGROUP_SETSOCKOPT],
-				 &ctx, BPF_PROG_RUN);
+	ret = BPF_PROG_RUN_ARRAY_CHECK(
+		cgrp->bpf.effective[BPF_CGROUP_SETSOCKOPT], &ctx, BPF_PROG_RUN);
 	release_sock(sk);
 	if (!ret) {
 		ret = -EPERM;
@@ -686,8 +693,8 @@ int __cgroup_bpf_run_filter_getsockopt(struct sock *sk, int level,
 	}
 
 	lock_sock(sk);
-	ret = BPF_PROG_RUN_ARRAY(cgrp->bpf.effective[BPF_CGROUP_GETSOCKOPT],
-				 &ctx, BPF_PROG_RUN);
+	ret = BPF_PROG_RUN_ARRAY_CHECK(
+		cgrp->bpf.effective[BPF_CGROUP_GETSOCKOPT], &ctx, BPF_PROG_RUN);
 	release_sock(sk);
 	if (!ret) {
 		ret = -EPERM;
@@ -739,13 +746,16 @@ int __cgroup_bpf_run_filter_sk(struct sock *sk,
 			       enum bpf_attach_type type)
 {
 	struct cgroup *cgrp = sk->skcg;
+	struct bpf_prog_array *array;
 	struct bpf_prog *prog;
 	int ret = 0;
 
-
+	if (!cgrp)
+		return 0;
 	rcu_read_lock();
 
-	prog = rcu_dereference(cgrp->bpf.effective[type]->progs[0]);
+	array = rcu_dereference(cgrp->bpf.effective[type]);
+	prog = array ? rcu_dereference(array->progs[0]) : NULL;
 	if (prog)
 		ret = BPF_PROG_RUN(prog, sk) == 1 ? 0 : -EPERM;
 
