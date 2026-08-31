@@ -857,6 +857,22 @@ static int cpufreq_add_dev_symlink(unsigned int cpu,
 	return ret;
 }
 
+static int cpufreq_add_policy_symlink(struct cpufreq_policy *policy)
+{
+	char name[CPUFREQ_NAME_LEN];
+
+	snprintf(name, sizeof(name), "policy%u", policy->cpu);
+	return sysfs_create_link(cpufreq_global_kobject, &policy->kobj, name);
+}
+
+static void cpufreq_remove_policy_symlink(struct cpufreq_policy *policy)
+{
+	char name[CPUFREQ_NAME_LEN];
+
+	snprintf(name, sizeof(name), "policy%u", policy->cpu);
+	sysfs_remove_link(cpufreq_global_kobject, name);
+}
+
 static int cpufreq_add_dev_interface(unsigned int cpu,
 				     struct cpufreq_policy *policy,
 				     struct device *dev)
@@ -923,6 +939,9 @@ static int cpufreq_add_dev_interface(unsigned int cpu,
 		pr_debug("setting policy failed\n");
 		if (cpufreq_driver->exit)
 			cpufreq_driver->exit(policy);
+	} else if (cpufreq_add_policy_symlink(policy)) {
+		pr_warn("cpufreq: failed to create policy%u link\n",
+			policy->cpu);
 	}
 	return ret;
 
@@ -1165,6 +1184,7 @@ static int __cpufreq_remove_dev(struct device *dev, struct subsys_interface *sif
 	kobj = &data->kobj;
 	cmp = &data->kobj_unregister;
 	unlock_policy_rwsem_write(cpu);
+	cpufreq_remove_policy_symlink(data);
 	kobject_put(kobj);
 
 	/* we need to make sure that the underlying kobj is actually
