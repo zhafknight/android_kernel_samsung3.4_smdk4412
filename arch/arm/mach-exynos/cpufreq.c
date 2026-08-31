@@ -731,6 +731,9 @@ static int exynos_cpufreq_cpu_init(struct cpufreq_policy *policy)
 #if defined(CONFIG_MACH_P4NOTE) || defined(CONFIG_MACH_KONA) || defined(CONFIG_MACH_M3) || defined(CONFIG_MACH_T0)
     	policy->max = 1600000;
     	policy->min = 100000;
+#elif defined(CONFIG_EXYNOS4210_1500MHZ_SUPPORT)
+	policy->max = 1500000;
+	policy->min = 100000;
 #else
     	policy->max = 1400000;
     	policy->min = 100000;
