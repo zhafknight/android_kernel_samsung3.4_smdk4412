@@ -54,6 +54,15 @@ static struct cpufreq_frequency_table exynos4210_freq_table[] = {
 	{L11, 300 * 1000},
 	{L12, 200 * 1000},
 	{L13, 100 * 1000},
+#elif defined(CONFIG_EXYNOS4210_1500MHZ_SUPPORT)
+	{L0, 1500 * 1000},
+	{L1, 1400 * 1000},
+	{L2, 1200 * 1000},
+	{L3, 1000 * 1000},
+	{L4,  800 * 1000},
+	{L5,  500 * 1000},
+	{L6,  200 * 1000},
+	{L7,  100 * 1000},
 #else
 	{L0, 1400*1000},
 	{L1, 1200*1000},
@@ -61,6 +70,7 @@ static struct cpufreq_frequency_table exynos4210_freq_table[] = {
 	{L3, 800*1000},
 	{L4, 500*1000},
 	{L5, 200*1000},
+	{L6, 100*1000},
 #endif
 	{0, CPUFREQ_TABLE_END},
 };
@@ -81,6 +91,11 @@ static struct cpufreq_clkdiv exynos4210_clkdiv_table[] = {
 	{L11, 0},
 	{L12, 0},
 	{L13, 0},
+#elif defined(CONFIG_EXYNOS4210_1500MHZ_SUPPORT)
+	{L6, 0},
+	{L7, 0},
+#else
+	{L6, 0},
 #endif
 };
 
@@ -105,6 +120,15 @@ static unsigned int clkdiv_cpu0[CPUFREQ_LEVEL_END][7] = {
 	{ 0, 3, 7, 3, 3, 1, 7 },  /* ARM L11: 300MHz */
 	{ 0, 1, 3, 1, 3, 1, 7 },  /* ARM L12: 200MHz */
 	{ 0, 1, 3, 1, 3, 1, 7 },  /* ARM L13: 100MHz */
+#elif defined(CONFIG_EXYNOS4210_1500MHZ_SUPPORT)
+	{ 0, 3, 7, 3, 4, 1, 7 },  /* ARM L0: 1500MHz */
+	{ 0, 3, 7, 3, 4, 1, 7 },  /* ARM L1: 1400MHz */
+	{ 0, 3, 7, 3, 4, 1, 7 },  /* ARM L2: 1200MHz */
+	{ 0, 3, 7, 3, 4, 1, 7 },  /* ARM L3: 1000MHz */
+	{ 0, 3, 7, 3, 3, 1, 7 },  /* ARM L4:  800MHz */
+	{ 0, 3, 7, 3, 3, 1, 7 },  /* ARM L5:  500MHz */
+	{ 0, 1, 3, 1, 3, 1, 0 },  /* ARM L6:  200MHz */
+	{ 0, 1, 3, 1, 3, 1, 7 },  /* ARM L7:  100MHz */
 #else
 	/* ARM L0: 1400MHz */
 	{ 0, 3, 7, 3, 4, 1, 7 },
@@ -123,6 +147,9 @@ static unsigned int clkdiv_cpu0[CPUFREQ_LEVEL_END][7] = {
 
 	/* ARM L5: 200MHz */
 	{ 0, 1, 3, 1, 3, 1, 0 },
+
+	/* ARM L6: 100MHz */
+	{ 0, 1, 3, 1, 3, 1, 7 },
 #endif
 };
 
@@ -145,6 +172,15 @@ static unsigned int clkdiv_cpu1[CPUFREQ_LEVEL_END][2] = {
 	{ 3, 0 },	/* ARM L11: 300MHz */
 	{ 3, 0 },	/* ARM L12: 200MHz */
 	{ 3, 0 }, 	/* ARM L13: 100MHz */
+#elif defined(CONFIG_EXYNOS4210_1500MHZ_SUPPORT)
+	{ 5, 0 },	/* ARM L0: 1500MHz */
+	{ 5, 0 },	/* ARM L1: 1400MHz */
+	{ 5, 0 },	/* ARM L2: 1200MHz */
+	{ 4, 0 },	/* ARM L3: 1000MHz */
+	{ 3, 0 },	/* ARM L4:  800MHz */
+	{ 3, 0 },	/* ARM L5:  500MHz */
+	{ 3, 0 },	/* ARM L6:  200MHz */
+	{ 3, 0 },	/* ARM L7:  100MHz */
 #else
 	/* ARM L0: 1400MHz */
 	{ 5, 0 },
@@ -162,6 +198,9 @@ static unsigned int clkdiv_cpu1[CPUFREQ_LEVEL_END][2] = {
 	{ 3, 0 },
 
 	/* ARM L5: 200MHz */
+	{ 3, 0 },
+
+	/* ARM L6: 100MHz */
 	{ 3, 0 },
 #endif
 };
@@ -182,6 +221,15 @@ static unsigned int exynos4_apll_pms_table[CPUFREQ_LEVEL_END] = {
 	((300 << 16)|(6 << 8)|(0x3)),	/* APLL FOUT L11: 300MHz */
 	((200 << 16)|(6 << 8)|(0x3)),	/* APLL FOUT L12: 200MHz */
 	((200 << 16)|(6 << 8)|(0x4)),	/* APLL FOUT L13: 100MHz */
+#elif defined(CONFIG_EXYNOS4210_1500MHZ_SUPPORT)
+	((375 << 16)|(6 << 8)|(0x1)),	/* APLL FOUT L0: 1500MHz */
+	((350 << 16)|(6 << 8)|(0x1)),	/* APLL FOUT L1: 1400MHz */
+	((150 << 16)|(3 << 8)|(0x1)),	/* APLL FOUT L2: 1200MHz */
+	((250 << 16)|(6 << 8)|(0x1)),	/* APLL FOUT L3: 1000MHz */
+	((200 << 16)|(6 << 8)|(0x1)),	/* APLL FOUT L4:  800MHz */
+	((250 << 16)|(6 << 8)|(0x2)),	/* APLL FOUT L5:  500MHz */
+	((200 << 16)|(6 << 8)|(0x3)),	/* APLL FOUT L6:  200MHz */
+	((200 << 16)|(6 << 8)|(0x4)),	/* APLL FOUT L7:  100MHz */
 #else
 	/* APLL FOUT L0: 1400MHz */
 	((350<<16)|(6<<8)|(0x1)),
@@ -200,6 +248,9 @@ static unsigned int exynos4_apll_pms_table[CPUFREQ_LEVEL_END] = {
 
 	/* APLL FOUT L5: 200MHz */
 	((200<<16)|(6<<8)|(0x3)),
+
+	/* APLL FOUT L6: 100MHz */
+	((200<<16)|(6<<8)|(0x4)),
 #endif
 };
 
@@ -227,6 +278,15 @@ static const unsigned int asv_voltage_A[CPUFREQ_LEVEL_END][8] = {
 	{ 1075000,  975000, 1000000,  975000,  975000,  950000,  925000,  925000 }, /*  300MHz */
 	{ 1050000,  950000,  975000,  950000,  950000,  925000,  925000,  925000 }, /*  200MHz */
 	{ 1050000,  950000,  975000,  950000,  950000,  925000,  925000,  925000 }, /*  100MHz */
+#elif defined(CONFIG_EXYNOS4210_1500MHZ_SUPPORT)
+	{ 1450000, 1450000, 1400000, 1375000, 1350000, 1325000, 1300000, 1275000 }, /* 1500MHz */
+	{ 1400000, 1350000, 1350000, 1325000, 1300000, 1275000, 1250000, 1225000 }, /* 1400MHz */
+	{ 1350000, 1350000, 1300000, 1275000, 1250000, 1225000, 1200000, 1175000 }, /* 1200MHz */
+	{ 1300000, 1250000, 1200000, 1175000, 1150000, 1125000, 1100000, 1075000 }, /* 1000MHz */
+	{ 1200000, 1150000, 1100000, 1075000, 1050000, 1025000, 1000000,  975000 }, /*  800MHz */
+	{ 1100000, 1050000, 1000000,  975000,  975000,  950000,  925000,  925000 }, /*  500MHz */
+	{ 1050000, 1000000,  975000,  950000,  950000,  925000,  925000,  925000 }, /*  200MHz */
+	{ 1050000, 1000000,  975000,  950000,  950000,  925000,  925000,  925000 }, /*  100MHz */
 #else
 	/*
 	 *	   SS, A1, A2, B1, B2, C1, C2, D
@@ -243,10 +303,21 @@ static const unsigned int asv_voltage_A[CPUFREQ_LEVEL_END][8] = {
 	{ 1200000, 1150000, 1100000, 1075000, 1050000, 1025000, 1000000, 975000 },
 	{ 1100000, 1050000, 1000000, 975000, 975000, 950000, 925000, 925000 },
 	{ 1050000, 1000000, 975000, 950000, 950000, 925000, 925000, 925000 },
+	{ 1050000, 1000000, 975000, 950000, 950000, 925000, 925000, 925000 },
 #endif
 };
 
 static const unsigned int asv_voltage_B[CPUFREQ_LEVEL_END][5] = {
+#if defined(CONFIG_EXYNOS4210_1500MHZ_SUPPORT)
+	{ 1450000, 1425000, 1400000, 1375000, 1350000 }, /* 1500MHz */
+	{ 1350000, 1350000, 1300000, 1250000, 1225000 }, /* 1400MHz */
+	{ 1325000, 1275000, 1225000, 1175000, 1150000 }, /* 1200MHz */
+	{ 1225000, 1175000, 1125000, 1075000, 1050000 }, /* 1000MHz */
+	{ 1150000, 1100000, 1050000, 1000000,  975000 }, /*  800MHz */
+	{ 1050000, 1000000,  950000,  950000,  950000 }, /*  500MHz */
+	{ 1025000,  975000,  950000,  950000,  950000 }, /*  200MHz */
+	{ 1025000,  975000,  950000,  950000,  950000 }, /*  100MHz */
+#else
 	/*
 	 *	   S, A, B, C, D
 	 * @1400 :
@@ -255,6 +326,7 @@ static const unsigned int asv_voltage_B[CPUFREQ_LEVEL_END][5] = {
 	 * @800	 :	ASV_VOLTAGE_TABLE
 	 * @500	 :
 	 * @200	 :
+	 * @100	 :
 	 */
 	{ 1350000, 1350000, 1300000, 1250000, 1225000 },
 	{ 1325000, 1275000, 1225000, 1175000, 1150000 },
@@ -262,6 +334,8 @@ static const unsigned int asv_voltage_B[CPUFREQ_LEVEL_END][5] = {
 	{ 1150000, 1100000, 1050000, 1000000, 975000 },
 	{ 1050000, 1000000, 950000, 950000, 950000 },
 	{ 1025000, 975000, 950000, 950000, 950000 },
+	{ 1025000, 975000, 950000, 950000, 950000 },
+#endif
 
 };
 
@@ -413,15 +487,27 @@ static void __init set_volt_table(void)
 		break;
 	case SUPPORT_1200MHZ:
 		for_1200 = true;
+#if defined(CONFIG_EXYNOS4210_1500MHZ_SUPPORT)
+		max_support_idx = L2;
+#else
 		max_support_idx = L0;
+#endif
 		break;
 	case SUPPORT_1000MHZ:
 		for_1000 = true;
+#if defined(CONFIG_EXYNOS4210_1500MHZ_SUPPORT)
+		max_support_idx = L3;
+#else
 		max_support_idx = L2;
+#endif
 		break;
 	default:
 		for_1000 = true;
+#if defined(CONFIG_EXYNOS4210_1500MHZ_SUPPORT)
+		max_support_idx = L3;
+#else
 		max_support_idx = L2;
+#endif
 		break;
 	}
 
@@ -437,6 +523,12 @@ static void __init set_volt_table(void)
 	for (i = L0; i < max_support_idx; i++) {
 		exynos4210_freq_table[i].frequency = CPUFREQ_ENTRY_INVALID;
 }
+#elif defined(CONFIG_EXYNOS4210_1500MHZ_SUPPORT)
+	if (asv_group == 0)
+		max_support_idx = L3;
+
+	for (i = L0; i < max_support_idx; i++)
+		exynos4210_freq_table[i].frequency = CPUFREQ_ENTRY_INVALID;
 #else
 	if ((asv_group == 0) || !for_1400)
 		exynos4210_freq_table[L0].frequency = CPUFREQ_ENTRY_INVALID;
@@ -533,6 +625,9 @@ int exynos4210_cpufreq_init(struct exynos_dvfs_info *info)
 #if defined(CONFIG_EXYNOS4210_1200MHZ_SUPPORT)
 	info->pm_lock_idx = L6; /* PM safe freq should be 800Mhz on cpu wakeup */
 	info->pll_safe_idx = L4; /* Safe freq should be 1000Mhz */
+#elif defined(CONFIG_EXYNOS4210_1500MHZ_SUPPORT)
+	info->pm_lock_idx = L4;
+	info->pll_safe_idx = L3;
 #else
 	info->pm_lock_idx = L3;
 	info->pll_safe_idx = L2;
