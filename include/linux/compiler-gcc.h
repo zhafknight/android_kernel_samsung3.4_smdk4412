@@ -3,8 +3,12 @@
 #endif
 
 /*
- * Common definitions for all gcc versions go here.
+ * Common definitions for supported GCC versions go here.
  */
+
+#if __GNUC__ <= 10
+#error "This kernel requires GCC 11 or newer"
+#endif
 
 
 /* Optimization barrier */
@@ -42,11 +46,10 @@
 #endif
 
 /*
- * Force always-inline if the user requests it so via the .config,
- * or if gcc is too old:
+ * Force always-inline if the user requests it via the .config.
  */
 #if !defined(CONFIG_ARCH_SUPPORTS_OPTIMIZED_INLINING) || \
-    !defined(CONFIG_OPTIMIZE_INLINING) || (__GNUC__ < 4)
+    !defined(CONFIG_OPTIMIZE_INLINING)
 # define inline		inline		__attribute__((always_inline))
 # define __inline__	__inline__	__attribute__((always_inline))
 # define __inline	__inline	__attribute__((always_inline))
@@ -67,9 +70,8 @@
  * being set up and there is no chance to restore the lr register to the value
  * before mcount was called.
  *
- * The asm() bodies of naked functions often depend on standard calling conventions,
- * therefore they must be noinline and noclone.  GCC 4.[56] currently fail to enforce
- * this, so we must do so ourselves.  See GCC PR44290.
+ * The asm() bodies of naked functions often depend on standard calling
+ * conventions, therefore they must be noinline and noclone.
  */
 #define __naked				__attribute__((naked)) noinline __noclone notrace
 
@@ -94,10 +96,27 @@
 #define __maybe_unused			__attribute__((unused))
 #define __always_unused			__attribute__((unused))
 
-#define __gcc_header(x) #x
-#define _gcc_header(x) __gcc_header(linux/compiler-gcc##x.h)
-#define gcc_header(x) _gcc_header(x)
-#include gcc_header(__GNUC__)
+#define __used                         __attribute__((__used__))
+#define __must_check                   __attribute__((warn_unused_result))
+#define __compiler_offsetof(a, b)      __builtin_offsetof(a, b)
+#define __cold                         __attribute__((__cold__))
+#define __UNIQUE_ID(prefix)            __PASTE(__PASTE(__UNIQUE_ID_, prefix), __COUNTER__)
+
+#ifndef __CHECKER__
+# define __compiletime_warning(message) __attribute__((warning(message)))
+# define __compiletime_error(message)   __attribute__((error(message)))
+#endif
+
+#define unreachable()                  __builtin_unreachable()
+#define __noclone                      __attribute__((__noclone__, __optimize__("no-tracer")))
+#define __visible                      __attribute__((externally_visible))
+#define asm_volatile_goto(x...)        do { asm goto(x); asm (""); } while (0)
+
+#ifdef CONFIG_ARCH_USE_BUILTIN_BSWAP
+#define __HAVE_BUILTIN_BSWAP32__
+#define __HAVE_BUILTIN_BSWAP64__
+#define __HAVE_BUILTIN_BSWAP16__
+#endif
 
 #if !defined(__noclone)
 #define __noclone	/* not needed */

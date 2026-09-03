@@ -246,7 +246,7 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 
 HOSTCC       = gcc
 HOSTCXX      = g++
-HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -O2 -fomit-frame-pointer
+HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -O2 -fomit-frame-pointer -std=gnu89
 HOSTCXXFLAGS = -O2
 
 # Decide whether to build built-in, modular, or both.
@@ -380,6 +380,7 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -Werror-implicit-function-declaration \
 		   -Wno-format-security \
 		   -fno-delete-null-pointer-checks \
+		   -std=gnu89 \
 		   -mtune=cortex-a9 \
 		   -mlong-calls \
 		   -Wno-error=all \
@@ -593,6 +594,10 @@ KBUILD_CFLAGS	+= -Os
 else
 KBUILD_CFLAGS	+= -O2
 endif
+
+# Do not let modern GCC turn conditional stores into unconditional stores.
+# The kernel relies on the original access pattern to avoid data races.
+KBUILD_CFLAGS	+= $(call cc-option,-fno-allow-store-data-races)
 
 ifdef CONFIG_CC_CHECK_WARNING_STRICTLY
 KBUILD_CFLAGS	+= -fdiagnostics-show-option -Werror \
