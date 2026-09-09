@@ -941,8 +941,9 @@ static int m5mo_set_flash(struct v4l2_subdev *sd, int val, int force)
 	if (!force)
 		state->flash_mode = val;
 
-	/* movie flash mode should be set when recording is started */
-	if (state->sensor_mode == SENSOR_MOVIE && !state->recording)
+	/* Allow Camera3 torch control before legacy recording starts. */
+	if (state->sensor_mode == SENSOR_MOVIE && !state->recording &&
+	    val != FLASH_MODE_TORCH && val != FLASH_MODE_OFF)
 		return 0;
 
 retry:
@@ -2441,12 +2442,11 @@ static int m5mo_set_frmsize(struct v4l2_subdev *sd)
 			M5MO_PARM_MON_SIZE, state->preview->reg_val);
 		CHECK_ERR(err);
 
-		if (state->zoom) {
-			/* Zoom position returns to 1 when the monitor size is changed. */
-			ctrl.id = V4L2_CID_CAMERA_ZOOM;
-			ctrl.value = state->zoom;
-			m5mo_set_zoom(sd, &ctrl);
-		}
+		/* Restore the requested zoom after every monitor-size change. */
+		ctrl.id = V4L2_CID_CAMERA_ZOOM;
+		ctrl.value = state->zoom;
+		err = m5mo_set_zoom(sd, &ctrl);
+		CHECK_ERR(err);
 
 		cam_info("preview frame size %dx%d\n",
 			state->preview->width, state->preview->height);
@@ -2535,6 +2535,7 @@ static int m5mo_g_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *a)
 static int m5mo_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *a)
 {
 	struct m5mo_state *state = to_state(sd);
+	u32 flex_fps;
 	int err;
 
 	u32 fps = a->parm.capture.timeperframe.denominator /
@@ -2556,9 +2557,12 @@ static int m5mo_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *a)
 	err = m5mo_set_mode(sd, M5MO_PARMSET_MODE);
 	CHECK_ERR(err);
 
-	cam_dbg("fixed fps %d\n", state->fps);
+	/* Keep movie-mode recording at a fixed 30 fps. */
+	flex_fps = (state->sensor_mode == SENSOR_MOVIE && state->fps == 30) ?
+		30 : (state->fps != 30 ? state->fps : 0);
+	cam_dbg("requested fps %d, flex fps %d\n", state->fps, flex_fps);
 	err = m5mo_writeb(sd, M5MO_CATEGORY_PARM,
-		M5MO_PARM_FLEX_FPS, state->fps != 30 ? state->fps : 0);
+		M5MO_PARM_FLEX_FPS, flex_fps);
 	CHECK_ERR(err);
 
 	return 0;
