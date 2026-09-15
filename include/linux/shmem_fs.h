@@ -13,7 +13,6 @@ struct shmem_inode_info {
 	spinlock_t		lock;
 	unsigned int		seals;		/* shmem seals */
 	unsigned long		flags;
-	unsigned int		seals;		/* shmem seals */
 	unsigned long		alloced;	/* data pages alloced to file */
 	union {
 		unsigned long	swapped;	/* subtotal assigned to swap */
