@@ -63,6 +63,14 @@
 #define AT_NO_AUTOMOUNT		0x800	/* Suppress terminal automount traversal */
 #define AT_EMPTY_PATH		0x1000	/* Allow empty relative pathname */
 
+/* 
+ * Flags for statx(2) synchronization behavior. 
+ */
+#define AT_STATX_SYNC_TYPE	0x6000	/* Type of synchronization required.  */
+#define AT_STATX_SYNC_AS_STAT	0x0000	/* Do whatever stat() does.  */
+#define AT_STATX_FORCE_SYNC	0x2000	/* Force synchronization with backing store.  */
+#define AT_STATX_DONT_SYNC	0x4000	/* Do not synchronize with backing store.  */
+
 #ifdef __KERNEL__
 
 #ifndef force_o_largefile

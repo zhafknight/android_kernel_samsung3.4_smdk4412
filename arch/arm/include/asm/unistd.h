@@ -410,6 +410,7 @@
 #define __NR_getrandom			(__NR_SYSCALL_BASE+384)
 #define __NR_memfd_create		(__NR_SYSCALL_BASE+385)
 #define __NR_bpf                        (__NR_SYSCALL_BASE+386)
+#define __NR_statx                      (__NR_SYSCALL_BASE+397)
 #define __NR_close_range				(__NR_SYSCALL_BASE+436)
 #define __NR_epoll_pwait2				(__NR_SYSCALL_BASE+441)
 

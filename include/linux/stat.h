@@ -1,6 +1,8 @@
 #ifndef _LINUX_STAT_H
 #define _LINUX_STAT_H
 
+#include <linux/types.h>
+
 #ifdef __KERNEL__
 
 #include <asm/stat.h>
@@ -46,6 +48,68 @@
 
 #endif
 
+struct statx_timestamp {
+	__s64 tv_sec;
+	__u32 tv_nsec;
+	__s32 __reserved;
+};
+
+struct statx {
+	__u32 stx_mask;
+	__u32 stx_blksize;
+	__u64 stx_attributes;
+	__u32 stx_nlink;
+	__u32 stx_uid;
+	__u32 stx_gid;
+	__u16 stx_mode;
+	__u16 __spare0[1];
+	__u64 stx_ino;
+	__u64 stx_size;
+	__u64 stx_blocks;
+	__u64 stx_attributes_mask;
+	struct statx_timestamp stx_atime;
+	struct statx_timestamp stx_btime;
+	struct statx_timestamp stx_ctime;
+	struct statx_timestamp stx_mtime;
+	__u32 stx_rdev_major;
+	__u32 stx_rdev_minor;
+	__u32 stx_dev_major;
+	__u32 stx_dev_minor;
+	__u64 stx_mnt_id;
+	__u32 stx_dio_mem_align;
+	__u32 stx_dio_offset_align;
+	__u64 stx_subvol;
+	__u32 stx_atomic_write_unit_min;
+	__u32 stx_atomic_write_unit_max;
+	__u32 stx_atomic_write_segments_max;
+	__u32 stx_dio_read_offset_align;
+	__u32 stx_atomic_write_unit_max_opt;
+	__u32 __spare2[1];
+	__u64 __spare3[8];
+};
+
+#define STATX_TYPE		0x00000001U
+#define STATX_MODE		0x00000002U
+#define STATX_NLINK		0x00000004U
+#define STATX_UID		0x00000008U
+#define STATX_GID		0x00000010U
+#define STATX_ATIME		0x00000020U
+#define STATX_MTIME		0x00000040U
+#define STATX_CTIME		0x00000080U
+#define STATX_INO		0x00000100U
+#define STATX_SIZE		0x00000200U
+#define STATX_BLOCKS		0x00000400U
+#define STATX_BASIC_STATS	0x000007ffU
+#define STATX_BTIME		0x00000800U
+#define STATX_MNT_ID		0x00001000U
+#define STATX_DIOALIGN		0x00002000U
+#define STATX_MNT_ID_UNIQUE	0x00004000U
+#define STATX_SUBVOL		0x00008000U
+#define STATX_WRITE_ATOMIC	0x00010000U
+#define STATX_DIO_READ_ALIGN	0x00020000U
+#define STATX__RESERVED	0x80000000U
+#define STATX_ALL		0x00000fffU
+
 #ifdef __KERNEL__
 #define S_IRWXUGO	(S_IRWXU|S_IRWXG|S_IRWXO)
 #define S_IALLUGO	(S_ISUID|S_ISGID|S_ISVTX|S_IRWXUGO)
@@ -56,7 +120,6 @@
 #define UTIME_NOW	((1l << 30) - 1l)
 #define UTIME_OMIT	((1l << 30) - 2l)
 
-#include <linux/types.h>
 #include <linux/time.h>
 
 struct kstat {

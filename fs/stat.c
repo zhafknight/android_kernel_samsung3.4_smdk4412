@@ -95,6 +95,66 @@ out:
 }
 EXPORT_SYMBOL(vfs_fstatat);
 
+static int cp_statx_compat(const struct kstat *stat,
+			   struct statx __user *buffer)
+{
+	struct statx tmp;
+
+	memset(&tmp, 0, sizeof(tmp));
+	tmp.stx_mask = STATX_BASIC_STATS;
+	tmp.stx_blksize = stat->blksize;
+	tmp.stx_nlink = stat->nlink;
+	tmp.stx_uid = stat->uid;
+	tmp.stx_gid = stat->gid;
+	tmp.stx_mode = stat->mode;
+	tmp.stx_ino = stat->ino;
+	tmp.stx_size = stat->size;
+	tmp.stx_blocks = stat->blocks;
+
+	tmp.stx_atime.tv_sec = stat->atime.tv_sec;
+	tmp.stx_atime.tv_nsec = stat->atime.tv_nsec;
+	tmp.stx_ctime.tv_sec = stat->ctime.tv_sec;
+	tmp.stx_ctime.tv_nsec = stat->ctime.tv_nsec;
+	tmp.stx_mtime.tv_sec = stat->mtime.tv_sec;
+	tmp.stx_mtime.tv_nsec = stat->mtime.tv_nsec;
+
+	tmp.stx_rdev_major = MAJOR(stat->rdev);
+	tmp.stx_rdev_minor = MINOR(stat->rdev);
+	tmp.stx_dev_major = MAJOR(stat->dev);
+	tmp.stx_dev_minor = MINOR(stat->dev);
+
+	return copy_to_user(buffer, &tmp, sizeof(tmp)) ? -EFAULT : 0;
+}
+
+SYSCALL_DEFINE5(statx, int, dfd, const char __user *, filename,
+		unsigned int, flags, unsigned int, mask,
+		struct statx __user *, buffer)
+{
+	struct kstat stat;
+	unsigned int path_flags;
+	int error;
+
+	if (mask & STATX__RESERVED)
+		return -EINVAL;
+
+	/* FORCE_SYNC and DONT_SYNC are mutually exclusive. */
+	if ((flags & AT_STATX_SYNC_TYPE) == AT_STATX_SYNC_TYPE)
+		return -EINVAL;
+
+	if (flags & ~(AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT |
+		      AT_EMPTY_PATH | AT_STATX_SYNC_TYPE))
+		return -EINVAL;
+
+	path_flags = flags & (AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT |
+			      AT_EMPTY_PATH);
+
+	error = vfs_fstatat(dfd, filename, &stat, path_flags);
+	if (error)
+		return error;
+
+	return cp_statx_compat(&stat, buffer);
+}
+
 int vfs_stat(const char __user *name, struct kstat *stat)
 {
 	return vfs_fstatat(AT_FDCWD, name, stat, 0);
