@@ -359,7 +359,6 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 	struct cflayer *layer, *link_support;
 	int head_room = 0;
 	struct caif_device_entry_list *caifdevs;
-	int res;
 
 	cfg = get_cfcnfg(dev_net(dev));
 	caifdevs = caif_device_list(dev_net(dev));
@@ -385,9 +384,10 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 				break;
 			}
 		}
-		res = caif_enroll_dev(dev, caifdev, link_support, head_room,
+		layer = NULL;
+		caif_enroll_dev(dev, caifdev, link_support, head_room,
 				&layer, NULL);
-		if (res)
+		if (!layer)
 			cfserl_release(link_support);
 		caifdev->flowctrl = dev_flowctrl;
 		break;
